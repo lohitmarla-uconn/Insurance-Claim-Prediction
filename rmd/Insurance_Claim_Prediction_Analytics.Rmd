@@ -7,11 +7,21 @@ output: html_document
 
 ```{r}
 
-insurance.data.dup <- read.csv("~/Documents/GitHub/GitHub/Insurance-Claim-Prediction/data/insurance2.csv")
+library(ggplot2)
+#Reading the csv file
+insurance.data.dup <- read.csv("~/Documents/GitHub/GitHub/Insurance-Claim-Prediction/data/insurance.csv")
 insurance.data <- insurance.data.dup
 
 str(insurance.data)
 
+nrow(insurance.data)
+
+```
+#Data Preprocessing
+
+```{r}
+insurance.data <- unique(insurance.data)
+nrow(insurance.data)
 ```
 
 ```{r}
@@ -25,13 +35,17 @@ table(insurance.data$children)
 print("smoker")
 table(insurance.data$smoker)
 
-print("insuranceclaim")
-table(insurance.data$insuranceclaim)
-
 print("region")
 table(insurance.data$region)
 
 ```
+```{r}
+table(insurance.data$insuranceclaim)
+```
+```{r}
+sapply(insurance.data, function(x) unique(x))
+```
+
 
 ```{r}
 
@@ -45,6 +59,10 @@ insurance.data[, column_names] <- lapply(insurance.data[, column_names], as.fact
 str(insurance.data)
 
 ```
+```{r}
+pairs(insurance.data)
+```
+
 ```{r}
 
 any(is.na(insurance.data))
@@ -67,22 +85,315 @@ ggplot(plot_data, aes(x = insuranceclaim, y = percentage)) +
   geom_text(aes(label = sprintf("%.1f%%", percentage)),
             position = position_stack(vjust = 0.5),   # Adjust vjust for vertical position
             color = "black", size = 3) +
-  labs(title = "Percentage Distribution of Insurance Claims",
+  labs(title = "Distribution of Insurance Claims: Non-Claims (0) vs. Claims (1)",
        x = "Insurance Claim",
        y = "Percentage") 
 
 ```
+
+
 ```{r}
-# Binomial Logit Model
+# Binomial Logit Model - 80-20 split
 
-
+set.seed(123457)
+train.prop <- 0.80
+strats <- insurance.data$insuranceclaim
+rr <- split(1:length(strats), strats)
+idx <- sort(as.numeric(unlist(sapply(rr, 
+        function(x) sample(x, length(x)*train.prop)))))
+insurance.data.train <- insurance.data[idx, ]
+insurance.data.test <- insurance.data[-idx, ]
 
 ```
+
+```{r}
+#check for equal proportions of number of claims 
+
+table(insurance.data.train$insuranceclaim)/nrow(insurance.data.train)
+
+table(insurance.data.test$insuranceclaim)/nrow(insurance.data.test)
+
+```
+
+```{r}
+#full binary logit model
+full.logit <- glm(insuranceclaim ~ . ,data = insurance.data.train, 
+                  family = binomial(link = "logit"))
+summary(full.logit)
+
+```
+
+```{r}
+
+car::qqPlot(residuals(full.logit), main = NA, pch = 19, col = 2, cex = 0.7)
+shapiro.test(residuals(full.logit))
+
+```
+
+```{r}
+#null binary logit model
+null.logit <- glm(insuranceclaim ~ 1 ,data = insurance.data.train, 
+                  family = binomial(link = "logit"))
+summary(null.logit)
+
+```
+
+```{r}
+
+car::qqPlot(residuals(null.logit), main = NA, pch = 19, col = 2, cex = 0.7)
+shapiro.test(residuals(null.logit))
+
+```
+
+```{r}
+
+both.logit <- step(full.logit, 
+                   direction="both",trace=0, data = insurance.data.train)
+formula(both.logit)
+
+summary(both.logit)
+
+```
+
+```{r}
+
+car::qqPlot(residuals(both.logit), main = NA, pch = 19, col = 2, cex = 0.7)
+shapiro.test(residuals(both.logit))
+
+```
+
+```{r}
+
+extpts <- which(abs(residuals(both.logit)) > 3*sd(residuals(both.logit)))
+nrow(insurance.data.train)
+length(extpts)
+nrow(data.train.2)
+data.train.2 <- insurance.data.train[-extpts,]
+full.logit <- glm(insuranceclaim ~ . ,data = data.train.2, 
+                  family = binomial(link = "logit"))
+both.logit.extpts <- step(full.logit, 
+                   direction="both",trace=0, data = data.train.2)
+formula(both.logit.extpts)
+
+summary(both.logit.extpts)
+
+```
+
+```{r}
+
+car::qqPlot(residuals(both.logit.extpts), main = NA, pch = 19, col = 2, cex = 0.7)
+shapiro.test(residuals(both.logit.extpts))
+
+```
+```{r}
+
+#Baysian Information Criteria
+BIC(both.logit)
+BIC(full.logit)
+BIC(null.logit)
+
+```
+
+## Test Data Accuracy
+```{r}
+
+pred.both <- predict(both.logit, newdata = insurance.data.test, type="response")
+pred.full <- predict(full.logit, newdata = insurance.data.test, type="response")
+
+```
+
+```{r}
+
+(table.both <- table(pred.both > 0.5, insurance.data.test$insuranceclaim))
+(table.full <- table(pred.full > 0.5, insurance.data.test$insuranceclaim))
+
+```
+```{r}
+
+(accuracy.both <- round((sum(diag(table.both))/sum(table.both))*100,2)) 
+(accuracy.full <- round((sum(diag(table.full))/sum(table.full))*100,2))
+
+```
+
+
+## Train Data Accuracy
+```{r}
+
+pred.both <- predict(both.logit, newdata = insurance.data.train, type="response")
+pred.full <- predict(full.logit, newdata = insurance.data.train, type="response")
+
+```
+
+```{r}
+
+(table.both <- table(pred.both > 0.5, insurance.data.train$insuranceclaim))
+(table.full <- table(pred.full > 0.5, insurance.data.train$insuranceclaim))
+
+```
+
+```{r}
+
+(accuracy.both <- round((sum(diag(table.both))/sum(table.both))*100,2)) 
+(accuracy.full <- round((sum(diag(table.full))/sum(table.full))*100,2))
+
+```
+
+##backward
+```{r}
+
+both.logit.backward <- step(full.logit, 
+                   direction="backward",trace=0, data = insurance.data.train)
+formula(both.logit.backward)
+
+summary(both.logit.backward)
+
+```
+```{r}
+
+car::qqPlot(residuals(both.logit.backward), main = NA, pch = 19, col = 2, cex = 0.7)
+shapiro.test(residuals(both.logit.backward))
+
+```
+##forkward
+```{r}
+
+both.logit.forward <- step(full.logit, 
+                   direction="forward",trace=0, data = insurance.data.train)
+formula(both.logit.forward)
+
+summary(both.logit.forward)
+
+```
+
+```{r}
+
+car::qqPlot(residuals(both.logit.forward), main = NA, pch = 19, col = 2, cex = 0.7)
+shapiro.test(residuals(both.logit.forward))
+
+```
+```{r}
+
+pred.both.forward <- predict(both.logit.forward, newdata = insurance.data.test, type="response")
+pred.both.backward <- predict(both.logit.backward, newdata = insurance.data.test, type="response")
+
+```
+
+```{r}
+
+(table.both.forward <- table(pred.both.forward > 0.5, insurance.data.test$insuranceclaim))
+(table.full.backward <- table(pred.both.backward > 0.5, insurance.data.test$insuranceclaim))
+
+```
+
+```{r}
+
+(accuracy.both.forward <- round((sum(diag(table.both.forward))/sum(table.both.forward))*100,2)) 
+(accuracy.full.backward <- round((sum(diag(table.full.backward))/sum(table.full.backward))*100,2))
+
+```
+
+```{r}
+# Binomial Full Logit Model - K fold validaton
+
+library(caret)
+library(dplyr)
+
+# Set the number of folds (K)
+num_folds <- 10
+
+# Create an index vector for splitting
+set.seed(123)  # for reproducibility
+indices <- createFolds(insurance.data$insuranceclaim, k = num_folds, list = TRUE)
+
+# Initialize a variable to store cross-validation results
+cv_results <- data.frame(Accuracies = double(num_folds))
+
+# Perform K-Fold Cross-Validation
+for (i in 1:num_folds) {
+  # Split the data into training and testing sets
+  train_data <- insurance.data[-indices[[i]], ]
+  test_data <- insurance.data[indices[[i]], ]
+  
+  # Fit your model on the training data
+  model <- glm(insuranceclaim ~ . ,data = train_data, 
+                  family = binomial(link = "logit"))
+  
+  # Make predictions on the test data
+  predictions <- predict(model, newdata = test_data,  type="response")
+  
+  (table.full <- table(predictions > 0.5, test_data$insuranceclaim))
+
+  acc <- round((sum(diag(table.full))/sum(table.full))*100,2)
+
+  # Store the RMSE in the results dataframe
+  cv_results$Accuracies[i] <- acc
+}
+
+# Display cross-validation results
+print(cv_results)
+
+cv_results$Accuracies <- as.numeric(cv_results$Accuracies)
+mean_accuracy <- mean(cv_results$Accuracies, na.rm = TRUE)
+mean_accuracy
+
+
+# Binomial Logit Model - K fold validation
+```
+
+```{r}
+# Binomial Both Logit Model - K fold validaton
+
+library(caret)
+library(dplyr)
+
+# Set the number of folds (K)
+num_folds <- 10
+
+# Create an index vector for splitting
+set.seed(123)  # for reproducibility
+indices <- createFolds(insurance.data$insuranceclaim, k = num_folds, list = TRUE)
+
+# Initialize a variable to store cross-validation results
+cv_results <- data.frame(Accuracies = double(num_folds))
+
+# Perform K-Fold Cross-Validation
+for (i in 1:num_folds) {
+  # Split the data into training and testing sets
+  train_data <- insurance.data[-indices[[i]], ]
+  test_data <- insurance.data[indices[[i]], ]
+  
+  # Fit your model on the training data
+  model <- step(full.logit, 
+                   direction="both",trace=0, data = train_data)
+  
+  # Make predictions on the test data
+  predictions <- predict(model, newdata = test_data,  type="response")
+  
+  (table.full <- table(predictions > 0.5, test_data$insuranceclaim))
+
+  acc <- round((sum(diag(table.full))/sum(table.full))*100,2)
+
+  # Store the RMSE in the results dataframe
+  cv_results$Accuracies[i] <- acc
+}
+
+# Display cross-validation results
+print(cv_results)
+
+cv_results$Accuracies <- as.numeric(cv_results$Accuracies)
+mean_accuracy <- mean(cv_results$Accuracies, na.rm = TRUE)
+mean_accuracy
+
+# Binomial Logit Model - K fold validation
+```
+
+
 
 ```{r}
 # Classification and Regression Trees
 
 ```
+
 
 ```{r}
 # Random Forest 
