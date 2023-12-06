@@ -167,7 +167,6 @@ shapiro.test(residuals(both.logit))
 extpts <- which(abs(residuals(both.logit)) > 3*sd(residuals(both.logit)))
 nrow(insurance.data.train)
 length(extpts)
-nrow(data.train.2)
 data.train.2 <- insurance.data.train[-extpts,]
 full.logit <- glm(insuranceclaim ~ . ,data = data.train.2, 
                   family = binomial(link = "logit"))
@@ -392,13 +391,278 @@ mean_accuracy
 ```{r}
 # Classification and Regression Trees
 
+library(rpart)
+
+insurance.data.dup <- read.csv("~/Documents/GitHub/GitHub/Insurance-Claim-Prediction/data/insurance.csv")
+insurance.data <- insurance.data.dup
+
 ```
 
+```{r}
+
+set.seed(12345)
+train.prop <- 0.80
+strats <- insurance.data$insuranceclaim
+rr <- split(1:length(strats), strats)
+idx <- sort(as.numeric(unlist(sapply(rr, 
+        function(x) sample(x, length(x)*train.prop)))))
+insurance.data.train <- insurance.data[idx, ]
+insurance.data.test <- insurance.data[-idx, ]
+table(insurance.data.train$insuranceclaim)/nrow(insurance.data.train)
+
+```
+
+```{r}
+
+fit.allp <- rpart(insuranceclaim ~., method = "class", data = insurance.data.train,
+                  control = rpart.control(minsplit = 1, cp = 0.001))
+summary(fit.allp)
+```
+
+```{r}
+printcp(fit.allp) 
+```
+
+```{r}
+max(fit.allp$cptable[,"nsplit"])
+min(fit.allp$cptable[,"nsplit"])
+```
+```{r}
+plotcp(fit.allp)
+```
+```{r}
+(cp= fit.allp$cptable[which.min(fit.allp$cptable[, "xerror"]), "CP"])
+(xerr = fit.allp$cptable[which.min(fit.allp$cptable[, "xerror"]), "xerror"])
+```
+
+```{r}
+library(rpart.plot)
+rpart.plot(fit.allp, extra = "auto")
+```
+```{r}
+
+test_df <- data.frame(actual = insurance.data.test$insuranceclaim, pred = NA)
+test_df$pred <- predict(fit.allp, newdata = insurance.data.test, type = "class")
+(conf_matrix_base <- table(test_df$pred, test_df$actual)) #confusion matrix
+
+```
+```{r}
+library(caret)
+
+sensitivity(conf_matrix_base)
+specificity(conf_matrix_base)
+(mis.rate <- conf_matrix_base[1, 2] + 
+   conf_matrix_base[2, 1])/sum(conf_matrix_base) 
+
+```
+
+```{r}
+
+#Hyper Parameter Tuning 
+
+fit.allf <- rpart(insuranceclaim ~., method = "class", data = insurance.data.train,
+                  control = rpart.control(cp = 0.0001))
+
+plotcp(fit.allp)
+
+test_df <- data.frame(actual = insurance.data.test$insuranceclaim, pred = NA)
+test_df$pred <- predict(fit.allp, newdata = insurance.data.test, type = "class")
+(conf_matrix_base <- table(test_df$pred, test_df$actual)) #confusion matrix
+
+sensitivity(conf_matrix_base)
+specificity(conf_matrix_base)
+(mis.rate <- conf_matrix_base[1, 2] + 
+   conf_matrix_base[2, 1])/sum(conf_matrix_base) 
+
+```
+```{r}
+
+
+fit.allf <- rpart(insuranceclaim ~., method = "class", data = insurance.data.train,
+                  control = rpart.control(cp = 0.1))
+
+plotcp(fit.allp)
+
+test_df <- data.frame(actual = insurance.data.test$insuranceclaim, pred = NA)
+test_df$pred <- predict(fit.allp, newdata = insurance.data.test, type = "class")
+(conf_matrix_base <- table(test_df$pred, test_df$actual)) #confusion matrix
+
+sensitivity(conf_matrix_base)
+specificity(conf_matrix_base)
+(mis.rate <- conf_matrix_base[1, 2] + 
+   conf_matrix_base[2, 1])/sum(conf_matrix_base) 
+
+```
+
+```{r}
+#Prune the tree
+pfit.allp <- prune(fit.allp, cp =
+    fit.allp$cptable[which.min(fit.allp$cptable[, "xerror"]), "CP"])
+rpart.plot(pfit.allp, extra = "auto")
+
+summary(pfit.allp)
+
+```
+```{r}
+
+#Measures of Predictive Performance
+rootnode_err <- sum(insurance.data.train$insuranceclaim==1)/nrow(insurance.data.train)
+prelerr = pfit.allp$cptable[which.min(pfit.allp$cptable[, "rel error"]), "rel error"]
+(presub.err_rate <- rootnode_err*prelerr) 
+
+rootnode_err <- sum(insurance.data.train$insuranceclaim==1)/nrow(insurance.data.train)
+pxerr = pfit.allp$cptable[which.min(pfit.allp$cptable[, "xerror"]), "xerror"]
+(pcv.err_rate <- rootnode_err*pxerr)
+
+```
+
+```{r}
+
+test_df <- data.frame(actual = insurance.data.test$insuranceclaim, pred = NA)
+test_df$pred <- predict(pfit.allp, newdata = insurance.data.test, type = "class")
+(conf_matrix_pruned_tree <- 
+    table(test_df$pred, test_df$actual)) #confusion matrix
+
+#library(caret)
+sensitivity(conf_matrix_pruned_tree)
+specificity(conf_matrix_pruned_tree)
+# Missclassification error rate:
+(conf_matrix_pruned_tree[1, 2] + 
+    conf_matrix_pruned_tree[2, 1])/sum(conf_matrix_pruned_tree) 
+
+
+```
 
 ```{r}
 # Random Forest 
 
+library(ranger)
+fit.rf.ranger <- ranger(insuranceclaim ~ ., data = insurance.data.train, 
+                   importance = 'impurity', mtry = 3)
+print(fit.rf.ranger)
 ```
+```{r}
+library(vip)
+(v1 <- vi(fit.rf.ranger))
+vip(v1)
+```
+```{r}
+
+# Assuming your predictions are stored in the variable 'pred'
+pred <- predict(fit.rf.ranger, data = insurance.data.test)
+
+# Create a data frame with actual and predicted values
+test_df <- data.frame(actual = insurance.data.test$insuranceclaim,
+                      pred = ifelse(pred$predictions > 0.5, 1, 0))
+
+# Create a confusion matrix
+conf_matrix_rf <- table(test_df$pred, test_df$actual)
+
+# Display the confusion matrix
+print(conf_matrix_rf)
+
+```
+```{r}
+
+# Sensitivity
+sensitivity(conf_matrix_rf)
+# Specificity
+specificity(conf_matrix_rf)
+# Missclassification error rate:
+(conf_matrix_rf[1,2] + conf_matrix_rf[2,1])/sum(conf_matrix_rf) 
+
+```
+
+#Dropping the columns which are hvaing the less vip value
+
+```{r}
+
+# dropped the sex column
+fit.rf.ranger <- ranger(insuranceclaim ~ bmi+children+age+smoker+charges+region, data = insurance.data.train, 
+                   importance = 'impurity', mtry = 3)
+
+print(fit.rf.ranger)
+
+(v1 <- vi(fit.rf.ranger))
+vip(v1)
+
+pred <- predict(fit.rf.ranger, data = insurance.data.test)
+# Create a data frame with actual and predicted values
+test_df <- data.frame(actual = insurance.data.test$insuranceclaim,
+                      pred = ifelse(pred$predictions > 0.5, 1, 0))
+# Create a confusion matrix
+conf_matrix_rf <- table(test_df$pred, test_df$actual)
+# Display the confusion matrix
+print(conf_matrix_rf)
+
+
+# Sensitivity
+sensitivity(conf_matrix_rf)
+# Specificity
+specificity(conf_matrix_rf)
+# Missclassification error rate:
+(conf_matrix_rf[1,2] + conf_matrix_rf[2,1])/sum(conf_matrix_rf) 
+
+```
+```{r}
+
+# dropped the sex and region column
+fit.rf.ranger <- ranger(insuranceclaim ~ bmi+children+age+smoker+charges, data = insurance.data.train, 
+                   importance = 'impurity', mtry = 3)
+
+print(fit.rf.ranger)
+
+(v1 <- vi(fit.rf.ranger))
+vip(v1)
+
+pred <- predict(fit.rf.ranger, data = insurance.data.test)
+# Create a data frame with actual and predicted values
+test_df <- data.frame(actual = insurance.data.test$insuranceclaim,
+                      pred = ifelse(pred$predictions > 0.5, 1, 0))
+# Create a confusion matrix
+conf_matrix_rf <- table(test_df$pred, test_df$actual)
+# Display the confusion matrix
+print(conf_matrix_rf)
+
+
+# Sensitivity
+sensitivity(conf_matrix_rf)
+# Specificity
+specificity(conf_matrix_rf)
+# Missclassification error rate:
+(conf_matrix_rf[1,2] + conf_matrix_rf[2,1])/sum(conf_matrix_rf) 
+
+```
+```{r}
+
+# dropped the sex, age and region column
+fit.rf.ranger <- ranger(insuranceclaim ~ bmi+children+smoker+charges, data = insurance.data.train, 
+                   importance = 'impurity', mtry = 3)
+
+print(fit.rf.ranger)
+
+(v1 <- vi(fit.rf.ranger))
+vip(v1)
+
+pred <- predict(fit.rf.ranger, data = insurance.data.test)
+# Create a data frame with actual and predicted values
+test_df <- data.frame(actual = insurance.data.test$insuranceclaim,
+                      pred = ifelse(pred$predictions > 0.5, 1, 0))
+# Create a confusion matrix
+conf_matrix_rf <- table(test_df$pred, test_df$actual)
+# Display the confusion matrix
+print(conf_matrix_rf)
+
+
+# Sensitivity
+sensitivity(conf_matrix_rf)
+# Specificity
+specificity(conf_matrix_rf)
+# Missclassification error rate:
+(conf_matrix_rf[1,2] + conf_matrix_rf[2,1])/sum(conf_matrix_rf) 
+
+```
+
 
 ```{r}
 # XGBoost
