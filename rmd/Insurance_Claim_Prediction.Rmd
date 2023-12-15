@@ -6,10 +6,6 @@ author:
 output: html_document
 ---
 
-##### Team Members
-- Lohit Marla
-- Nikhil Kunduru
-
 ##### Abstract
 In the realm of insurance, the anticipation of claims plays a pivotal role in risk management and financial planning. This project delves into the challenge of predicting insurance claims, a task made intricate by a dataset characterized by its modest sample size and a slight imbalance between claimed and unclaimed instances. The objective is to surmount these obstacles and construct a robust predictive model capable of accurately classifying insurance claims. The project will navigate through methodologies to address imbalances, optimize feature extraction, and employ advanced predictive modeling techniques such as classification and regression trees, random forest, xgboost algorithms, and statistical models such as logit and probit. By tackling these complexities head-on, the study aims to contribute valuable insights to the field of insurance analytics, enabling more informed decision-making and risk assessment.
 
@@ -31,8 +27,6 @@ The project focuses on predicting insurance claims using decision trees and stat
 - Identify and address data quality issues.
 
 **Data Preprocessing**
-- Handle missing values, encode categorical variables.
-- Mitigate class imbalance through appropriate techniques.
 
 **Model Selection**
 1. **Classification and Regression Trees (CART):** Decision tree models for classification.
@@ -57,4 +51,8 @@ The project focuses on predicting insurance claims using decision trees and stat
 
 ##### Usefulness
 The project aims to provide valuable insights into effective predictive modeling for insurance claim prediction. The findings will contribute to more informed decision-making and risk assessment in the insurance industry.
+
+
+The dataset presents critical demographic and lifestyle information related to health insurance.
+
 

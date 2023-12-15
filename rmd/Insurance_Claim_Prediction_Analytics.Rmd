@@ -1,13 +1,29 @@
 ---
-title: "InsNova_Auto_Insurance_Claim_Prediction_Frequency_Severity_Model"
-author: "Lohit Marla"
+title: "Insurance_Claim_Prediction"
+authors:
+  - name: "Lohit Marla"
+  - name: "Nikhil Kunduru"
 date: "2023-11-15"
 output: html_document
 ---
 
+Following are the necessary libraries imported 
 ```{r}
 
 library(ggplot2)
+library(caret)
+library(dplyr)
+library(vip)
+library(ranger)
+library(rpart)
+library(rpart.plot)
+library(pROC)
+
+options(warn = -1) 
+```
+
+```{r}
+
 #Reading the csv file
 insurance.data.dup <- read.csv("~/Documents/GitHub/GitHub/Insurance-Claim-Prediction/data/insurance.csv")
 insurance.data <- insurance.data.dup
@@ -17,12 +33,16 @@ str(insurance.data)
 nrow(insurance.data)
 
 ```
+There are total of 1338 observations with the explanatory variables such as age, sex, bmi, children, smoker, region, charges as well as the response variables such as insuranceclaim
+
 #Data Preprocessing
 
+Following code removes the duplicates from the data if there are any.
 ```{r}
 insurance.data <- unique(insurance.data)
 nrow(insurance.data)
 ```
+Count of the data is 1337 after applying the unique function on the data.
 
 ```{r}
 
@@ -39,14 +59,19 @@ print("region")
 table(insurance.data$region)
 
 ```
+Predictors variables Sex, children, smoker and region contians intermediate levels such as 2, 6, 2, 4 respectively. There are total of 662 females and 675 males. Total count of non smokers is 1063 when compared to the smokers of 274. There are total of 4 regions and their mapping is as follows northeast=0, northwest=1, southeast=2, southwest=3 with the count of 324, 324, 364 and 325 respectively. Children feature indicates the number of children or the dependent's where as no dependents are 573, 1 dependent's as 324, 2 dependent's as 240, 3 dependent's as 157, 4 dependents as 25 and 5 as 18.
+
 ```{r}
 table(insurance.data$insuranceclaim)
 ```
+Response variables posses two level such as 0 and 1 where o indicates the no claim and 1 indicates claim and their counts are 555 and 782 respectively.
+
+Following displays the unique values of each explanatory variable
 ```{r}
 sapply(insurance.data, function(x) unique(x))
 ```
 
-
+Following code is to conver the columns sex, children, smoker, insuranceclaim and region columns to factor levels
 ```{r}
 
 column_names <- c(
@@ -59,10 +84,8 @@ insurance.data[, column_names] <- lapply(insurance.data[, column_names], as.fact
 str(insurance.data)
 
 ```
-```{r}
-pairs(insurance.data)
-```
 
+Here, we are checking for the null values in any of the column of the dataframe as they could mislead our model's we fit and predictions.
 ```{r}
 
 any(is.na(insurance.data))
@@ -70,7 +93,9 @@ any(is.na(insurance.data))
 colSums(is.na(insurance.data)) > 0
 
 ```
+There are no such records in out dataframe
 
+Following histogram displays the distribution of the "claims" as well as the "no claims". No claims were acconted to total of 41.5% of the response variables and claims were total of 58.5%.
 ```{r}
 
 percentage_data <- table(insurance.data$insuranceclaim) / nrow(insurance.data) * 100
@@ -91,7 +116,7 @@ ggplot(plot_data, aes(x = insuranceclaim, y = percentage)) +
 
 ```
 
-
+Following code is to split the data into the trian and test split's in the proportion of 80% and 20%
 ```{r}
 # Binomial Logit Model - 80-20 split
 
@@ -106,6 +131,7 @@ insurance.data.test <- insurance.data[-idx, ]
 
 ```
 
+Following are the distributions of the claims and no claims in the train and test data frames with similar distributions.
 ```{r}
 #check for equal proportions of number of claims 
 
@@ -114,6 +140,94 @@ table(insurance.data.train$insuranceclaim)/nrow(insurance.data.train)
 table(insurance.data.test$insuranceclaim)/nrow(insurance.data.test)
 
 ```
+Basis on the response variable with 0's and 1's which is a binomial we can apply binary logit model 
+
+A **binary random variable** $Y$ can assume only one of two possible
+values, a value of $1$ (Yes) or a value of $0$ (No).
+
+A binary random variable $Y$ has a Bernoulli($\pi$) distribution with
+
+$$
+P(Y=1)=\pi = 1-P(Y=0), 
+$$ {#eq-bernoulli}
+
+and probability mass function (p.m.f.)
+
+$$
+p(y; \pi) = \pi^y (1-\pi)^{1-y},~y = 0 \mbox{ or } 1; 0 \le \pi  \le 1. 
+$$ {#eq-pmfBern}
+
+A useful transformation of $\pi$ is the logit (or, log-odds)
+transformation:
+
+$$
+\text{logit}(\pi) = \log \left(\frac{\pi}{1-\pi}\right)
+$$ {#eq-logitpi}
+
+Note: we looked at log odds in @sec-ch3TwoSamp.
+
+Let $\eta = \text{logit}(\pi)$. After some algebra, we see that we can
+uniquely write $\pi$ as a function of $\eta$, i.e., the inverse transformation is
+
+$$
+\pi = \frac{\exp(\eta)}{1+\exp(\eta)}
+$$ {#eq-invlogit}
+
+### Logit Model {#sec-logitmodel}
+
+The binary logit (or, logistic regression) model is a generalized linear
+model (GLIM) for explaining binary responses $Y_i$. Our goal is to model
+the binary responses as functions of $p$ independent variables denoted
+by $X_{i,j},~j=1,\ldots,p$ for each $i$.
+
+The *random component* of the GLIM is
+
+$$
+Y_i | \pi_i \sim \mbox{Bernoulli}(\pi_i).  
+$$ {#eq-logitglim1}
+
+The *systematic component* is
+
+$$
+\eta_i =  \beta_0 + \sum_{j=1}^p  \beta_j X_{i,j} = \mathbf{x}_i' \boldsymbol{\beta}.
+$$  {#eq-binarysys}
+
+with $\boldsymbol{\beta} = (\beta_0, \beta_1, \ldots,\beta_p)'$, and
+$\mathbf{x}_i = (1, X_{i,1},\ldots, X_{i,p})'$.
+
+The *logit link function* relates the $i$th mean response $\pi_i$ to the
+systematic component $\eta_i$:
+
+$$
+\mbox{logit}(\pi_i | \mathbf{x}_i) = \log\left(\frac{\pi_i}{1-\pi_i}\right) = \eta_i.
+$$ {#eq-logitglim2}
+
+Since the mean response $\pi_i$ must lie in the interval $(0,1)$,
+whereas $\eta_i$ is real-valued, we need a function such as the logit
+function to link the two in a correct way.
+
+By inverting the logit link function (see @eq-invlogit), we can write
+the binary logit model as
+
+$$
+\pi_i = P(Y_i =1 | \mathbf{x}_i) = \frac{\exp(\beta_0 + \sum_{j=1}^p  \beta_j X_{i,j})}{
+1+ \exp(\beta_0 + \sum_{j=1}^p  \beta_j X_{i,j})}.
+$$ {#eq-logitglim3}
+
+
+1. Full Binary logit model was fitted on the data where the response variable is insuranceclaims and the remaining variables such as sex, children, bmi, smokers, age, region and charges.
+
+Following are the null and alternative hypothesis.
+
+**Null Hypothesis (\(H_0\)):**
+\[ H_0: \beta_j = 0 \]
+
+The null hypothesis asserts that there is no association between the independent variable \(X_j\) and the log-odds of the dependent variable being in the "success" category.
+
+**Alternative Hypothesis (\(H_1\)):**
+\[ H_1: \beta_j \neq 0 \]
+
+The alternative hypothesis suggests that the independent variable \(X_j\) does have a significant association with the log-odds of the event.
 
 ```{r}
 #full binary logit model
@@ -122,6 +236,60 @@ full.logit <- glm(insuranceclaim ~ . ,data = insurance.data.train,
 summary(full.logit)
 
 ```
+# Logistic Regression Results Interpretation
+
+## Coefficients
+
+### Intercept
+The intercept is -7.733. When all predictor variables are zero, the log-odds of not making an insurance claim is -7.733.
+
+### Age
+For each one-unit increase in age, the log-odds of making an insurance claim increase by 0.0314 (p < 0.001).
+
+### Sex
+The coefficient for 'sex1' is 0.06626 with a p-value of 0.719. It is not statistically significant, suggesting that gender may not be a significant predictor of insurance claims.
+
+### BMI
+For each one-unit increase in BMI, the log-odds of making an insurance claim increase by 0.279 (p < 0.001).
+
+### Children
+The coefficients for 'children1' through 'children5' represent the effect of having 1 to 5 children compared to having no children. As the number of children increases, the log-odds of making an insurance claim decrease significantly.
+
+### Smoker
+Smokers (smoker1) have higher log-odds of making an insurance claim compared to non-smokers (4.112, p < 0.001).
+
+### Region
+The coefficients for 'region1', 'region2', and 'region3' represent the effect of regions 1, 2, and 3 compared to region 4. None of the regions are statistically significant.
+
+### Charges
+The coefficient for 'charges' is not statistically significant (p = 0.559), suggesting that charges may not be a significant predictor.
+
+## Odds Ratios (Exponentiated Coefficients)
+
+- **Age:** The odds of making an insurance claim increase by approximately 3.51% for each one-year increase in age.
+- **BMI:** The odds of making an insurance claim increase by approximately 32.37% for each one-unit increase in BMI.
+- **Children:** Compared to having no children, the odds of making an insurance claim decrease significantly as the number of children increases.
+- **Smoker:** Smokers have approximately 61.2 times higher odds of making an insurance claim compared to non-smokers.
+
+## Model Fit
+
+- The model significantly improves the fit compared to the null model (p < 2e-16).
+- AIC (Akaike Information Criterion) is 779.29, a measure of model performance.
+
+## Dispersion Parameter
+
+- The dispersion parameter is 1, indicating that the binomial distribution is appropriate for the data.
+
+## Deviance
+
+- The null deviance (1451.15) represents the deviance when considering only the intercept.
+- The residual deviance (751.29) is the deviance after fitting the model with predictors. A lower deviance indicates a better fit.
+
+## Conclusion
+
+- Age, BMI, number of children, and smoking status appear to be significant predictors of insurance claims.
+- Charges and region may not be statistically significant predictors in this model.
+
 
 ```{r}
 
@@ -129,7 +297,9 @@ car::qqPlot(residuals(full.logit), main = NA, pch = 19, col = 2, cex = 0.7)
 shapiro.test(residuals(full.logit))
 
 ```
+From the above residual plot we can observe most of the data points were normal except few data points however according to the shapiro wilk statistical test we can confirm that the data is not normal.
 
+Following null binary model was fitted with no predictors with the repsonse variable
 ```{r}
 #null binary logit model
 null.logit <- glm(insuranceclaim ~ 1 ,data = insurance.data.train, 
@@ -137,6 +307,15 @@ null.logit <- glm(insuranceclaim ~ 1 ,data = insurance.data.train,
 summary(null.logit)
 
 ```
+The intercept is 0.34193 with a standard error of 0.06207. This represents the log-odds of the baseline category (insurance claim = 0) when there are no predictor variables. The coefficient is statistically significant (p-value < 0.001).
+
+The intercept represents the log-odds of the baseline category (insurance claim = 0) when no predictor variables are included in the model.
+
+The model with only the intercept doesn't provide much information about the relationship between predictors and the response variable. It serves as a baseline against which more complex models can be compared.
+
+The AIC is relatively high, suggesting that models with additional predictors might provide a better fit to the data.
+
+Since there are no predictor variables, the model is essentially stating that the log-odds of making an insurance claim when there are no predictors is 0.34193.
 
 ```{r}
 
@@ -144,16 +323,30 @@ car::qqPlot(residuals(null.logit), main = NA, pch = 19, col = 2, cex = 0.7)
 shapiro.test(residuals(null.logit))
 
 ```
-
+From the above residual plot we can observe most of the data points were normal except few data points however according to the shapiro wilk statistical test we can confirm that the data is not normal as we reject the null hypothesis
+.
+To select the variables which are impacting the response variable we applied the vairable selection method on top of the full logit model. Direction was set to both. 
 ```{r}
 
-both.logit <- step(full.logit, 
-                   direction="both",trace=0, data = insurance.data.train)
+both.logit <- step(null.logit, list(lower = formula(null.logit),
+                                    upper = formula(full.logit)),
+                   direction = "both", trace = 0, data = insurance.data.train)
+
 formula(both.logit)
 
 summary(both.logit)
 
 ```
+The model suggests that the number of children, BMI, smoking status, and age are significant predictors of insurance claims.
+
+Smokers are associated with a significant increase in the likelihood of making an insurance claim.
+
+Older individuals (higher age) are associated with a slight increase in the likelihood of making an insurance claim.
+
+The model provides a significantly better fit than the null model, as evidenced by the lower residual deviance and AIC.
+
+Interpret the coefficients cautiously. For example, the interpretation of the number of children assumes linearity, and interactions or nonlinear effects may be present.
+
 
 ```{r}
 
@@ -161,7 +354,9 @@ car::qqPlot(residuals(both.logit), main = NA, pch = 19, col = 2, cex = 0.7)
 shapiro.test(residuals(both.logit))
 
 ```
+According to the above residual plot the data was not normal 
 
+There are outliers after fitting the model, let's the model by eliminating the residuals which are having the variation greater than 3 times of standard deviation. Following is the code implementation
 ```{r}
 
 extpts <- which(abs(residuals(both.logit)) > 3*sd(residuals(both.logit)))
@@ -184,6 +379,38 @@ car::qqPlot(residuals(both.logit.extpts), main = NA, pch = 19, col = 2, cex = 0.
 shapiro.test(residuals(both.logit.extpts))
 
 ```
+From the residual plot we see the data points are deviated and are not normal.
+
+The Akaike Information Criterion (AIC) is an information criterion
+    used for model selection. For a model with $p$ estimated parameters,
+    it is defined as
+
+$$
+\text{AIC} = -2 \ell(\hat{\boldsymbol{\beta}};\mathbf{y}) + 2p.
+$$ {#eq-AIC}
+
+While we wish to select a model with largest maximized log-likelihood,
+AIC penalizes us for using a model with an unnecessarily large $p$, the
+penalty term being $2p$.
+
+Let's compare the AIC values 
+```{r}
+
+#Akaike Information Criterion
+AIC(both.logit)
+AIC(full.logit)
+AIC(null.logit)
+
+```
+From the above values we can observe full.logit model aic values as less which compared to others 
+
+Another useful information based model selection criterion is called the Bayesian Information Criterion (BIC), which uses a different penalty $p\log(n)$:
+$$
+\text{BIC} = -2 \ell(\hat{\boldsymbol{\beta}};\mathbf{y}) + p \log(n)
+$$ {#eq-BIC}
+
+Again, a model with smaller BIC is better which is full.logit model in comparison to the both logit model.
+
 ```{r}
 
 #Baysian Information Criteria
@@ -193,20 +420,25 @@ BIC(null.logit)
 
 ```
 
+Let's predict the values of the test data set by the help of predict function by passing the model as well as the dataset along side the type as response where it will automatically takes care of the logit conversions.
+
 ## Test Data Accuracy
+
+Predictions with the help of the both.logit as well as the full.logit model.
 ```{r}
 
-pred.both <- predict(both.logit, newdata = insurance.data.test, type="response")
-pred.full <- predict(full.logit, newdata = insurance.data.test, type="response")
+pred.both.test <- predict(both.logit, newdata = insurance.data.test, type="response")
+pred.full.test <- predict(full.logit, newdata = insurance.data.test, type="response")
 
 ```
 
 ```{r}
 
-(table.both <- table(pred.both > 0.5, insurance.data.test$insuranceclaim))
-(table.full <- table(pred.full > 0.5, insurance.data.test$insuranceclaim))
+(table.both <- table(pred.both.test > 0.5, insurance.data.test$insuranceclaim))
+(table.full <- table(pred.full.test > 0.5, insurance.data.test$insuranceclaim))
 
 ```
+
 ```{r}
 
 (accuracy.both <- round((sum(diag(table.both))/sum(table.both))*100,2)) 
@@ -214,8 +446,29 @@ pred.full <- predict(full.logit, newdata = insurance.data.test, type="response")
 
 ```
 
+We can observe that the accuracy of the test data by the full model is more which compared to the  both model.
+
+**ROC curve.** Another useful metric is area under the **receiver operating characteristics** (ROC) curve, which used to evaluate the prediction accuracy in binary and multi-class classification. 
+
+It quantifies the trade-off between the sensitivity or true positive rate (TPR) and specificity or false positive rate (FPR) of a prediction.
+
+**Sensitivity**, or true positive (TP) is the probability that a binary response is predicted as a 1 (or, yes), given that it is an event (or, yes). 
+
+**Specificity**, or true negative (TN) is the probability that a binary response is predicted as a 0 (or, no), given that it is a non-event (or, no).
+```{r}
+
+par(mfrow = c(1,2))
+roc.both <- roc(insurance.data.test$insuranceclaim ~ pred.both.test, plot = TRUE, 
+                legacy.axes = TRUE, print.auc = TRUE)
+roc.both <- roc(insurance.data.test$insuranceclaim ~ pred.full.test, plot = TRUE, 
+                legacy.axes = TRUE, print.auc = TRUE)
+
+```
+
 
 ## Train Data Accuracy
+
+Following are the predictions, accuracy and roc curves on the train data.
 ```{r}
 
 pred.both <- predict(both.logit, newdata = insurance.data.train, type="response")
@@ -237,7 +490,21 @@ pred.full <- predict(full.logit, newdata = insurance.data.train, type="response"
 
 ```
 
+```{r}
+
+par(mfrow = c(1,2))
+roc.both <- roc(insurance.data.train$insuranceclaim ~ pred.both, plot = TRUE, 
+                legacy.axes = TRUE, print.auc = TRUE)
+roc.both <- roc(insurance.data.train$insuranceclaim ~ pred.full, plot = TRUE, 
+                legacy.axes = TRUE, print.auc = TRUE)
+
+```
+We can observe that the train and test data accuracy were similar for the full model where as there is a slight difference between them in the both model.
+AUC curve looks similar for both the both as well as the full model.
+
 ##backward
+
+Model was fitted based on the backward direction and the aic value is 628 which is less when compared to the both model.
 ```{r}
 
 both.logit.backward <- step(full.logit, 
@@ -247,13 +514,18 @@ formula(both.logit.backward)
 summary(both.logit.backward)
 
 ```
+Features such as age, bmi, children and smoker are the ones which were identified by the backward model as more relevant in predicting the response variable.
+
+However, residual plot does not loks good as it indicates the data points are not normal.
 ```{r}
 
 car::qqPlot(residuals(both.logit.backward), main = NA, pch = 19, col = 2, cex = 0.7)
 shapiro.test(residuals(both.logit.backward))
 
 ```
-##forkward
+##forward
+
+Following is the code for the forward elimination method and it's AIC value is 634 which is slightly greater than the backward model.
 ```{r}
 
 both.logit.forward <- step(full.logit, 
@@ -263,6 +535,7 @@ formula(both.logit.forward)
 summary(both.logit.forward)
 
 ```
+Features such as age, sex, bmi, children, region, charges and smoker are the ones which were identified by the backward model as more relevant in predicting the response variable.
 
 ```{r}
 
@@ -270,6 +543,9 @@ car::qqPlot(residuals(both.logit.forward), main = NA, pch = 19, col = 2, cex = 0
 shapiro.test(residuals(both.logit.forward))
 
 ```
+However, residual plot does not loks good as it indicates the data points are not normal.
+
+Following are the predictions, accuracy of the test data for both forward and backward elimination models.
 ```{r}
 
 pred.both.forward <- predict(both.logit.forward, newdata = insurance.data.test, type="response")
@@ -290,12 +566,15 @@ pred.both.backward <- predict(both.logit.backward, newdata = insurance.data.test
 (accuracy.full.backward <- round((sum(diag(table.full.backward))/sum(table.full.backward))*100,2))
 
 ```
+We can observe the ac curacies of both the forward and backward elimination methods are similar to that of both elimination methods.
 
+Testing Strategy 2 - **K-Fold Validation**
+
+K-fold cross-validation is a resampling technique commonly used in machine learning to assess the performance and generalization ability of a predictive model. The basic idea is to partition the dataset into k subsets (folds), train the model on k-1 folds, and evaluate it on the remaining fold. This process is repeated k times, with each of the k folds used exactly once as the validation data.
+
+Following code implements the **k-fold validation** with 10 folds on the **full model** and the average accuracy obtained is 87%(approx).
 ```{r}
 # Binomial Full Logit Model - K fold validaton
-
-library(caret)
-library(dplyr)
 
 # Set the number of folds (K)
 num_folds <- 10
@@ -338,12 +617,9 @@ mean_accuracy
 
 # Binomial Logit Model - K fold validation
 ```
-
+Following code implements the **k-fold validation** with 10 folds on the **both model** and the average accuracy obtained is 88%.
 ```{r}
 # Binomial Both Logit Model - K fold validaton
-
-library(caret)
-library(dplyr)
 
 # Set the number of folds (K)
 num_folds <- 10
@@ -385,13 +661,176 @@ mean_accuracy
 
 # Binomial Logit Model - K fold validation
 ```
+The probit link function is an alternative link function.
 
+Starting with the standard normal c.d.f $\phi(z)$ which lies in 
+the interval $[0, 1]$, the probit (or inverse normal c.d.f.) link assumes that 
+
+$$
+\phi^{-1}(\pi_i) = \eta_i 
+$$ {#eq-probit1}
+
+so that
+
+$$
+\pi_i = \Phi(\eta_i)
+$$ {#eq-probit2}
+
+where $\eta_i$ is given by @eq-binarysys as
+
+$$
+\eta_i =  \beta_0 + \sum_{j=1}^p  \beta_j X_{i,j} = \mathbf{x}_i' \boldsymbol{\beta}.
+$$
+**Null Hypothesis (\(H_0\)):**
+\[ H_0: \beta_j = 0 \]
+
+The null hypothesis asserts that there is no association between the independent variable \(X_j\) and the probability of the dependent variable being in the "success" category.
+
+**Alternative Hypothesis (\(H_1\)):**
+\[ H_1: \beta_j \neq 0 \]
+
+The alternative hypothesis suggests that the independent variable \(X_j\) does have a significant association with the probability of the event.
+
+
+```{r}
+# Probit Full Model
+
+full.probit <- glm(insuranceclaim ~ . ,data = insurance.data.train , 
+                   family = binomial(link = "probit"))
+summary(full.probit)
+
+```
+Intercept ((Intercept)): The coefficient is -4.012, indicating the log-odds of the outcome when all predictors are zero. It is significantly negative, suggesting a lower likelihood of making an insurance claim.
+
+Age (age): A one-unit increase in age is associated with an increase in the log-odds of making an insurance claim by 0.01821. This effect is statistically significant.
+
+Sex (sex1): The coefficient is not statistically significant at the 0.05 significance level, suggesting that gender may not be a significant predictor of insurance claims.
+
+BMI (bmi): A one-unit increase in BMI is associated with an increase in the log-odds of making an insurance claim by 0.1458. This effect is statistically significant.
+
+Children (children1, children2, children3, children4, children5): The number of children has a significant negative impact on the log-odds of making an insurance claim.
+
+Smoker (smoker1): Being a smoker is associated with an increase in the log-odds of making an insurance claim by 2.162. This effect is highly significant.
+
+Region (region1, region2, region3): The coefficients for regions are not statistically significant, suggesting that region may not be a significant predictor of insurance claims.
+
+Charges (charges): The coefficient is not statistically significant at the 0.05 significance level, indicating that charges may not be a significant predictor of insurance claims.
+
+```{r}
+
+car::qqPlot(residuals(full.probit), main = NA, pch = 19, col = 2, cex = 0.7)
+shapiro.test(residuals(full.probit))
+```
+From the resiudal plot we can ibserve that the data points are not normal which we can also proven statistically by shapiro-wilk test.
+
+```{r}
+
+#train data accuracy
+pred.both <- predict(full.probit, newdata = insurance.data.train, type="response")
+(table.both <- table(pred.both > 0.5, insurance.data.train$insuranceclaim))
+(accuracy.both.forward <- round((sum(diag(table.both.forward))/sum(table.both.forward))*100,2)) 
+
+```
+```{r}
+
+#test data accuracy
+pred.both <- predict(full.probit, newdata = insurance.data.test, type="response")
+(table.both <- table(pred.both > 0.5, insurance.data.test$insuranceclaim))
+(accuracy.both.forward <- round((sum(diag(table.both.forward))/sum(table.both.forward))*100,2)) 
+
+```
+Test data accuracy of the models are similar to the logit model.
+
+Following is the code to fit the probit model on the reduced predictors such as age, bmi, children, smoker
+```{r}
+# Probit Model
+
+full.predictors.probit <- glm(insuranceclaim ~ age + bmi + children + smoker ,data = insurance.data.train , 
+                   family = binomial(link = "probit"))
+summary(full.predictors.probit)
+
+```
+```{r}
+
+car::qqPlot(residuals(full.predictors.probit), main = NA, pch = 19, col = 2, cex = 0.7)
+shapiro.test(residuals(full.predictors.probit))
+
+```
+```{r}
+
+pred.both.train.probit <- predict(full.predictors.probit, newdata = insurance.data.train, type="response")
+(table.both <- table(pred.both.train.probit > 0.5, insurance.data.train$insuranceclaim))
+(accuracy.both.forward <- round((sum(diag(table.both.forward))/sum(table.both.forward))*100,2)) 
+
+```
+
+```{r}
+
+pred.both.test.probit <- predict(full.predictors.probit, newdata = insurance.data.test, type="response")
+(table.both <- table(pred.both.test.probit > 0.5, insurance.data.test$insuranceclaim))
+(accuracy.both.forward <- round((sum(diag(table.both.forward))/sum(table.both.forward))*100,2)) 
+
+```
+```{r}
+
+par(mfrow = c(1,2))
+roc.both <- roc(insurance.data.train$insuranceclaim ~ pred.both.train.probit, plot = TRUE, 
+                legacy.axes = TRUE, print.auc = TRUE)
+roc.both <- roc(insurance.data.test$insuranceclaim ~ pred.both.test.probit, plot = TRUE, 
+                legacy.axes = TRUE, print.auc = TRUE)
+
+```
+
+
+```{r}
+# Binomial Full Probit Model - K fold validaton
+
+
+# Set the number of folds (K)
+num_folds <- 10
+
+# Create an index vector for splitting
+set.seed(123)  # for reproducibility
+indices <- createFolds(insurance.data$insuranceclaim, k = num_folds, list = TRUE)
+
+# Initialize a variable to store cross-validation results
+cv_results <- data.frame(Accuracies = double(num_folds))
+
+# Perform K-Fold Cross-Validation
+for (i in 1:num_folds) {
+  # Split the data into training and testing sets
+  train_data <- insurance.data[-indices[[i]], ]
+  test_data <- insurance.data[indices[[i]], ]
+  
+  # Fit your model on the training data
+  model <- glm(insuranceclaim ~ . ,data = train_data, 
+                  family = binomial(link = "probit"))
+  
+  # Make predictions on the test data
+  predictions <- predict(model, newdata = test_data,  type="response")
+  
+  (table.full <- table(predictions > 0.5, test_data$insuranceclaim))
+
+  acc <- round((sum(diag(table.full))/sum(table.full))*100,2)
+
+  # Store the RMSE in the results dataframe
+  cv_results$Accuracies[i] <- acc
+}
+
+# Display cross-validation results
+print(cv_results)
+
+cv_results$Accuracies <- as.numeric(cv_results$Accuracies)
+mean_accuracy <- mean(cv_results$Accuracies, na.rm = TRUE)
+mean_accuracy
+
+
+# Binomial Logit Model - K fold validation
+```
 
 
 ```{r}
 # Classification and Regression Trees
-
-library(rpart)
 
 insurance.data.dup <- read.csv("~/Documents/GitHub/GitHub/Insurance-Claim-Prediction/data/insurance.csv")
 insurance.data <- insurance.data.dup
@@ -436,7 +875,7 @@ plotcp(fit.allp)
 ```
 
 ```{r}
-library(rpart.plot)
+
 rpart.plot(fit.allp, extra = "auto")
 ```
 ```{r}
@@ -447,7 +886,6 @@ test_df$pred <- predict(fit.allp, newdata = insurance.data.test, type = "class")
 
 ```
 ```{r}
-library(caret)
 
 sensitivity(conf_matrix_base)
 specificity(conf_matrix_base)
@@ -523,7 +961,6 @@ test_df$pred <- predict(pfit.allp, newdata = insurance.data.test, type = "class"
 (conf_matrix_pruned_tree <- 
     table(test_df$pred, test_df$actual)) #confusion matrix
 
-#library(caret)
 sensitivity(conf_matrix_pruned_tree)
 specificity(conf_matrix_pruned_tree)
 # Missclassification error rate:
@@ -536,16 +973,17 @@ specificity(conf_matrix_pruned_tree)
 ```{r}
 # Random Forest 
 
-library(ranger)
 fit.rf.ranger <- ranger(insuranceclaim ~ ., data = insurance.data.train, 
                    importance = 'impurity', mtry = 3)
 print(fit.rf.ranger)
 ```
+
 ```{r}
-library(vip)
+
 (v1 <- vi(fit.rf.ranger))
 vip(v1)
 ```
+
 ```{r}
 
 # Assuming your predictions are stored in the variable 'pred'
@@ -562,6 +1000,7 @@ conf_matrix_rf <- table(test_df$pred, test_df$actual)
 print(conf_matrix_rf)
 
 ```
+
 ```{r}
 
 # Sensitivity
@@ -604,6 +1043,7 @@ specificity(conf_matrix_rf)
 (conf_matrix_rf[1,2] + conf_matrix_rf[2,1])/sum(conf_matrix_rf) 
 
 ```
+
 ```{r}
 
 # dropped the sex and region column
@@ -633,6 +1073,7 @@ specificity(conf_matrix_rf)
 (conf_matrix_rf[1,2] + conf_matrix_rf[2,1])/sum(conf_matrix_rf) 
 
 ```
+
 ```{r}
 
 # dropped the sex, age and region column
@@ -664,7 +1105,4 @@ specificity(conf_matrix_rf)
 ```
 
 
-```{r}
-# XGBoost
 
-```
