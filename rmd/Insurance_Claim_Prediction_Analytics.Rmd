@@ -18,6 +18,8 @@ library(ranger)
 library(rpart)
 library(rpart.plot)
 library(pROC)
+library(xgboost)
+library(Matrix)
 
 options(warn = -1) 
 ```
@@ -723,6 +725,7 @@ shapiro.test(residuals(full.probit))
 ```
 From the resiudal plot we can ibserve that the data points are not normal which we can also proven statistically by shapiro-wilk test.
 
+Following are the train and test accuracies
 ```{r}
 
 #train data accuracy
@@ -739,7 +742,7 @@ pred.both <- predict(full.probit, newdata = insurance.data.test, type="response"
 (accuracy.both.forward <- round((sum(diag(table.both.forward))/sum(table.both.forward))*100,2)) 
 
 ```
-Test data accuracy of the models are similar to the logit model.
+Test data accuracy of the models are similar to the logit model. Also, both the train and test data accuracy is same 
 
 Following is the code to fit the probit model on the reduced predictors such as age, bmi, children, smoker
 ```{r}
@@ -750,12 +753,39 @@ full.predictors.probit <- glm(insuranceclaim ~ age + bmi + children + smoker ,da
 summary(full.predictors.probit)
 
 ```
+
+The probit link function is an alternative link function.
+
+Starting with the standard normal c.d.f $\phi(z)$ which lies in 
+the interval $[0, 1]$, the probit (or inverse normal c.d.f.) link assumes that 
+
+$$
+\phi^{-1}(\pi_i) = \eta_i 
+$$ {#eq-probit1}
+
+so that
+
+$$
+\pi_i = \Phi(\eta_i)
+$$ {#eq-probit2}
+
+where $\eta_i$ is given by @eq-binarysys as
+
+$$
+\eta_i =  \beta_0 + \sum_{j=1}^p  \beta_j X_{i,j} = \mathbf{x}_i' \boldsymbol{\beta}.
+$$
+
+The Fisher scoring (FS) algorithm is again used to obtain MLE’s of the regression coefficients.
+
 ```{r}
 
 car::qqPlot(residuals(full.predictors.probit), main = NA, pch = 19, col = 2, cex = 0.7)
 shapiro.test(residuals(full.predictors.probit))
 
 ```
+Above plot illustrates that the data points are not normal as there are deviations from the normal line.
+
+
 ```{r}
 
 pred.both.train.probit <- predict(full.predictors.probit, newdata = insurance.data.train, type="response")
@@ -827,6 +857,31 @@ mean_accuracy
 
 # Binomial Logit Model - K fold validation
 ```
+# 3. Classification and Regression Trees
+
+We define two impurity measures, Gini index and entropy, for classifying a response with $J$ categories.
+
+The **Gini index** is defined by
+
+$$
+\mbox{Gini index} = 1 - \sum_{j=1}^J p^2_j,  
+$$ {#eq-gini-index}
+
+where $p_j = P(Y \in \mbox{class} j),~j=1,\ldots,J$. Gini index lies in $[0, 1]$. The value $0$ denotes a pure classification where all the cases belong to a single class, while $1$ indicates a random distribution of cases across the $J$ classes. A Gini index of $0.5$ shows an equal distribution of cases over some classes.
+
+**Entropy** is an alternate impurity measure which also lies in $[0,1]$:
+
+$$
+\mbox{Entropy} =  \sum_{j=1}^J-p_j \log_2 (p_j).  
+$$ {#eq-entropy}
+
+The *rpart* package uses the Gini index as the impurity index and minimizes a cost
+
+$$
+\text{Cost}_{CP}(\mbox{Tree}) = \mbox{Error(Tree)} + Cp  \ \mathcal{N}(\mbox{Tree}),
+$$
+
+where, Error(Tree) is the fraction of misclassified cases and $\mathcal{N}(\mbox{Tree})$ is the number of leaf nodes in the tree.
 
 
 ```{r}
@@ -856,6 +911,17 @@ table(insurance.data.train$insuranceclaim)/nrow(insurance.data.train)
 fit.allp <- rpart(insuranceclaim ~., method = "class", data = insurance.data.train,
                   control = rpart.control(minsplit = 1, cp = 0.001))
 summary(fit.allp)
+
+```
+
+The *root node error* is the percent of incorrectly classified cases at the first (root) splitting node. That is,
+
+$$
+\text{Root Node Error} = \frac{\text{No. of 1's in the training dataset}}{\text{Size of the training dataset}}
+$$
+
+```{r}
+(rootnode_err <- sum(insurance.data.train$insuranceclaim==1)/nrow(insurance.data.train))
 ```
 
 ```{r}
@@ -1104,5 +1170,119 @@ specificity(conf_matrix_rf)
 
 ```
 
+# 5. Gradient Boosting
 
+```{r}
+
+# Transform the predictor matrix using dummy (or indicator or one-hot) encoding 
+matrix_predictors.train <- 
+  as.matrix(sparse.model.matrix(insuranceclaim ~., data = insurance.data.train))[, -1]
+matrix_predictors.test <- 
+  as.matrix(sparse.model.matrix(insuranceclaim ~., data = insurance.data.test))[, -1]
+```
+
+```{r}
+# Train dataset
+pred.train.gbm <- data.matrix(matrix_predictors.train) # predictors only
+#convert factor to numeric
+insurance.data.train.gbm <- as.numeric(as.character(insurance.data.train$insuranceclaim)) 
+```
+
+```{r}
+dtrain <- xgb.DMatrix(data = pred.train.gbm, label = insurance.data.train.gbm)
+# Test dataset
+pred.test.gbm <- data.matrix(matrix_predictors.test) # predictors only
+ #convert factor to numeric
+insurance.data.test.gbm <- as.numeric(as.character(insurance.data.test$insuranceclaim))
+```
+
+```{r}
+dtest <- xgb.DMatrix(data = pred.test.gbm, label = insurance.data.test.gbm)
+```
+
+```{r}
+watchlist <- list(train = dtrain, test = dtest)
+param <- list(max_depth = 2, eta = 1, nthread = 2,
+              objective = "binary:logistic", eval_metric = "auc")
+
+model.xgb <- xgb.train(param, dtrain, nrounds = 2, watchlist)
+
+```
+
+```{r}
+xgb.importance.plot(model.xgb)
+```
+
+
+```{r}
+
+pred.y.train <- predict(model.xgb, pred.train.gbm)
+prediction.train <- as.numeric(pred.y.train > 0.5)
+# Measure prediction accuracy on train data
+(tab<-table(insurance.data.train.gbm, prediction.train))
+```
+
+```{r}
+sum(diag(tab))/sum(tab)
+```
+
+```{r}
+pred.y = predict(model.xgb, pred.test.gbm)
+prediction <- as.numeric(pred.y > 0.5)
+# Measure prediction accuracy on test data
+(tab1<-table(insurance.data.test.gbm,prediction))
+
+sum(diag(tab1))/sum(tab1)
+
+```
+
+```{r}
+# 10 rounds from 2 
+
+watchlist <- list(train = dtrain, test = dtest)
+param <- list(max_depth = 2, eta = 1, nthread = 2,
+              objective = "binary:logistic", eval_metric = "auc")
+
+model.xgb <- xgb.train(param, dtrain, nrounds = 10, watchlist)
+
+pred.y.train <- predict(model.xgb, pred.train.gbm)
+prediction.train <- as.numeric(pred.y.train > 0.5)
+# Measure prediction accuracy on train data
+(tab<-table(insurance.data.train.gbm, prediction.train))
+
+sum(diag(tab))/sum(tab)
+
+pred.y = predict(model.xgb, pred.test.gbm)
+prediction <- as.numeric(pred.y > 0.5)
+# Measure prediction accuracy on test data
+(tab1<-table(insurance.data.test.gbm,prediction))
+
+sum(diag(tab1))/sum(tab1)
+
+```
+```{r}
+# 15 rounds 
+
+watchlist <- list(train = dtrain, test = dtest)
+param <- list(max_depth = 2, eta = 1, nthread = 2,
+              objective = "binary:logistic", eval_metric = "auc")
+
+model.xgb <- xgb.train(param, dtrain, nrounds = 10, watchlist)
+
+pred.y.train <- predict(model.xgb, pred.train.gbm)
+prediction.train <- as.numeric(pred.y.train > 0.5)
+# Measure prediction accuracy on train data
+(tab<-table(insurance.data.train.gbm, prediction.train))
+
+sum(diag(tab))/sum(tab)
+
+pred.y = predict(model.xgb, pred.test.gbm)
+prediction <- as.numeric(pred.y > 0.5)
+# Measure prediction accuracy on test data
+(tab1<-table(insurance.data.test.gbm,prediction))
+
+sum(diag(tab1))/sum(tab1)
+
+
+```
 
