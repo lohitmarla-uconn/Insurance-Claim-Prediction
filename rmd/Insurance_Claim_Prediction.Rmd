@@ -1,5 +1,5 @@
 ---
-title: "Insurance Claim Prediction"
+title: "Analyzing Insurance Claims for Future Financial Safeguard"
 author: 
   - "Lohit Marla"
   - "Nikhil Kunduru"

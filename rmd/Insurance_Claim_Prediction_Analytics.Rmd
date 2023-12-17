@@ -1,5 +1,5 @@
 ---
-title: "Insurance_Claim_Prediction"
+title: "Analyzing Insurance Claims for Future Financial Safeguard"
 authors:
   - name: "Lohit Marla"
   - name: "Nikhil Kunduru"
@@ -20,6 +20,7 @@ library(rpart.plot)
 library(pROC)
 library(xgboost)
 library(Matrix)
+library(DiagrammeR)
 
 options(warn = -1) 
 ```
@@ -66,7 +67,7 @@ Predictors variables Sex, children, smoker and region contians intermediate leve
 ```{r}
 table(insurance.data$insuranceclaim)
 ```
-Response variables posses two level such as 0 and 1 where o indicates the no claim and 1 indicates claim and their counts are 555 and 782 respectively.
+Response variables contains two level such as 0 and 1 where o indicates the no claim and 1 indicates claim and their counts are 555 and 782 respectively.
 
 Following displays the unique values of each explanatory variable
 ```{r}
@@ -80,7 +81,7 @@ column_names <- c(
      "sex", "children", "smoker", "insuranceclaim", "region"
 )
 
-# Convert the selected columns to factors in your data frame
+# Convert the selected columns to factors in our data frame
 insurance.data[, column_names] <- lapply(insurance.data[, column_names], as.factor)
 
 str(insurance.data)
@@ -313,7 +314,7 @@ The intercept is 0.34193 with a standard error of 0.06207. This represents the l
 
 The intercept represents the log-odds of the baseline category (insurance claim = 0) when no predictor variables are included in the model.
 
-The model with only the intercept doesn't provide much information about the relationship between predictors and the response variable. It serves as a baseline against which more complex models can be compared.
+The model with only the intercept doesn't provide much information about the relationship between predictors and the response variable. **It serves as a baseline against which more complex models can be compared**.
 
 The AIC is relatively high, suggesting that models with additional predictors might provide a better fit to the data.
 
@@ -339,7 +340,7 @@ formula(both.logit)
 summary(both.logit)
 
 ```
-The model suggests that the number of children, BMI, smoking status, and age are significant predictors of insurance claims.
+The model suggests that the number of **children, BMI, smoking status, and age are significant predictors of insurance claims**.
 
 Smokers are associated with a significant increase in the likelihood of making an insurance claim.
 
@@ -461,9 +462,9 @@ It quantifies the trade-off between the sensitivity or true positive rate (TPR) 
 
 par(mfrow = c(1,2))
 roc.both <- roc(insurance.data.test$insuranceclaim ~ pred.both.test, plot = TRUE, 
-                legacy.axes = TRUE, print.auc = TRUE)
+                legacy.axes = TRUE, print.auc = TRUE, main = "Both Model ROC Curve")
 roc.both <- roc(insurance.data.test$insuranceclaim ~ pred.full.test, plot = TRUE, 
-                legacy.axes = TRUE, print.auc = TRUE)
+                legacy.axes = TRUE, print.auc = TRUE, main = "Full Model ROC Curve")
 
 ```
 
@@ -496,13 +497,13 @@ pred.full <- predict(full.logit, newdata = insurance.data.train, type="response"
 
 par(mfrow = c(1,2))
 roc.both <- roc(insurance.data.train$insuranceclaim ~ pred.both, plot = TRUE, 
-                legacy.axes = TRUE, print.auc = TRUE)
+                legacy.axes = TRUE, print.auc = TRUE, main = "Both Model ROC Curve")
 roc.both <- roc(insurance.data.train$insuranceclaim ~ pred.full, plot = TRUE, 
-                legacy.axes = TRUE, print.auc = TRUE)
+                legacy.axes = TRUE, print.auc = TRUE, main = "Full Model ROC Curve")
 
 ```
 We can observe that the train and test data accuracy were similar for the full model where as there is a slight difference between them in the both model.
-AUC curve looks similar for both the both as well as the full model.
+**ROC curve looks similar for both as well as the full model**.
 
 ##backward
 
@@ -594,7 +595,6 @@ for (i in 1:num_folds) {
   train_data <- insurance.data[-indices[[i]], ]
   test_data <- insurance.data[indices[[i]], ]
   
-  # Fit your model on the training data
   model <- glm(insuranceclaim ~ . ,data = train_data, 
                   family = binomial(link = "logit"))
   
@@ -639,7 +639,7 @@ for (i in 1:num_folds) {
   train_data <- insurance.data[-indices[[i]], ]
   test_data <- insurance.data[indices[[i]], ]
   
-  # Fit your model on the training data
+  # Fit our model on the training data
   model <- step(full.logit, 
                    direction="both",trace=0, data = train_data)
   
@@ -704,15 +704,15 @@ summary(full.probit)
 ```
 Intercept ((Intercept)): The coefficient is -4.012, indicating the log-odds of the outcome when all predictors are zero. It is significantly negative, suggesting a lower likelihood of making an insurance claim.
 
-Age (age): A one-unit increase in age is associated with an increase in the log-odds of making an insurance claim by 0.01821. This effect is statistically significant.
+**Age (age)**: A one-unit increase in age is associated with an increase in the log-odds of making an insurance claim by 0.01821. This effect is statistically significant.
 
 Sex (sex1): The coefficient is not statistically significant at the 0.05 significance level, suggesting that gender may not be a significant predictor of insurance claims.
 
-BMI (bmi): A one-unit increase in BMI is associated with an increase in the log-odds of making an insurance claim by 0.1458. This effect is statistically significant.
+**BMI (bmi)**: A one-unit increase in BMI is associated with an increase in the log-odds of making an insurance claim by 0.1458. This effect is statistically significant.
 
-Children (children1, children2, children3, children4, children5): The number of children has a significant negative impact on the log-odds of making an insurance claim.
+**Children** (children1, children2, children3, children4, children5): The number of children has a significant negative impact on the log-odds of making an insurance claim.
 
-Smoker (smoker1): Being a smoker is associated with an increase in the log-odds of making an insurance claim by 2.162. This effect is highly significant.
+**Smoker** (smoker1): Being a smoker is associated with an increase in the log-odds of making an insurance claim by 2.162. This effect is highly significant.
 
 Region (region1, region2, region3): The coefficients for regions are not statistically significant, suggesting that region may not be a significant predictor of insurance claims.
 
@@ -725,6 +725,8 @@ shapiro.test(residuals(full.probit))
 ```
 From the resiudal plot we can ibserve that the data points are not normal which we can also proven statistically by shapiro-wilk test.
 
+Again, a model with smaller BIC is better which is full.logit model in comparison to the both logit model.
+
 Following are the train and test accuracies
 ```{r}
 
@@ -734,6 +736,7 @@ pred.both <- predict(full.probit, newdata = insurance.data.train, type="response
 (accuracy.both.forward <- round((sum(diag(table.both.forward))/sum(table.both.forward))*100,2)) 
 
 ```
+
 ```{r}
 
 #test data accuracy
@@ -753,29 +756,12 @@ full.predictors.probit <- glm(insuranceclaim ~ age + bmi + children + smoker ,da
 summary(full.predictors.probit)
 
 ```
+The logistic regression model with link is probit provides insights into the factors influencing the likelihood of making an insurance claim. The intercept, set at -4.124238, represents the baseline log-odds when all other predictors are zero. As individuals age, the log-odds of making a claim increase by 0.020223 for each additional year. Similarly, a rise in BMI corresponds to a log-odds increase of 0.144275 for making an insurance claim.
 
-The probit link function is an alternative link function.
+The presence of children plays a notable role. Having one, two, three, four, or five children results in log-odds reductions of -1.232168, -1.912556, -2.568484, -2.583550, and -2.092116, respectively, in the likelihood of making a claim. In other words, the number of children inversely affects the probability of an insurance claim.
 
-Starting with the standard normal c.d.f $\phi(z)$ which lies in 
-the interval $[0, 1]$, the probit (or inverse normal c.d.f.) link assumes that 
+On the other hand, being a smoker significantly elevates the log-odds by 2.279723, indicating a substantial increase in the likelihood of making an insurance claim for smokers. These insights provide a nuanced understanding of how different factors contribute to the complex dynamics of insurance claim predictions.
 
-$$
-\phi^{-1}(\pi_i) = \eta_i 
-$$ {#eq-probit1}
-
-so that
-
-$$
-\pi_i = \Phi(\eta_i)
-$$ {#eq-probit2}
-
-where $\eta_i$ is given by @eq-binarysys as
-
-$$
-\eta_i =  \beta_0 + \sum_{j=1}^p  \beta_j X_{i,j} = \mathbf{x}_i' \boldsymbol{\beta}.
-$$
-
-The Fisher scoring (FS) algorithm is again used to obtain MLE’s of the regression coefficients.
 
 ```{r}
 
@@ -794,6 +780,7 @@ pred.both.train.probit <- predict(full.predictors.probit, newdata = insurance.da
 
 ```
 
+
 ```{r}
 
 pred.both.test.probit <- predict(full.predictors.probit, newdata = insurance.data.test, type="response")
@@ -801,13 +788,19 @@ pred.both.test.probit <- predict(full.predictors.probit, newdata = insurance.dat
 (accuracy.both.forward <- round((sum(diag(table.both.forward))/sum(table.both.forward))*100,2)) 
 
 ```
+The classification model demonstrates an accuracy of 88.06%, signifying the proportion of accurate predictions relative to the total predictions. Notably, there are 142 instances of true positives, denoting cases where the model correctly predicted class 1, and 88 instances of true negatives, indicating accurate predictions for class 0. On the other hand, the model incurred 15 false positives, where it predicted class 1, but the actual class was 0, and 23 false negatives, representing cases where the model predicted class 0, but the true class was 1.
+
+
 ```{r}
 
 par(mfrow = c(1,2))
-roc.both <- roc(insurance.data.train$insuranceclaim ~ pred.both.train.probit, plot = TRUE, 
-                legacy.axes = TRUE, print.auc = TRUE)
-roc.both <- roc(insurance.data.test$insuranceclaim ~ pred.both.test.probit, plot = TRUE, 
-                legacy.axes = TRUE, print.auc = TRUE)
+
+# Training ROC curve
+roc.both.train <- roc(insurance.data.train$insuranceclaim ~ pred.both.train.probit, plot = TRUE, 
+                      legacy.axes = TRUE, print.auc = TRUE, main = "Training ROC Curve")
+# Testing ROC curve
+roc.both.test <- roc(insurance.data.test$insuranceclaim ~ pred.both.test.probit, plot = TRUE, 
+                     legacy.axes = TRUE, print.auc = TRUE, main = "Testing ROC Curve")
 
 ```
 
@@ -832,7 +825,7 @@ for (i in 1:num_folds) {
   train_data <- insurance.data[-indices[[i]], ]
   test_data <- insurance.data[indices[[i]], ]
   
-  # Fit your model on the training data
+  # Fit our model on the training data
   model <- glm(insuranceclaim ~ . ,data = train_data, 
                   family = binomial(link = "probit"))
   
@@ -857,6 +850,8 @@ mean_accuracy
 
 # Binomial Logit Model - K fold validation
 ```
+The **model demonstrates relatively consistent performance across different folds**, with accuracy ranging **from 84.33% to 91.04%**. This suggests that the model is not heavily dependent on a specific subset of the data and maintains its predictive capability across various scenarios.The mean accuracy of approximately 87.30% indicates that, on average, the model correctly predicts whether an individual will make an insurance claim in about 87.30% of cases. This suggests a reasonably effective predictive performance.
+
 # 3. Classification and Regression Trees
 
 We define two impurity measures, Gini index and entropy, for classifying a response with $J$ categories.
@@ -913,13 +908,52 @@ fit.allp <- rpart(insuranceclaim ~., method = "class", data = insurance.data.tra
 summary(fit.allp)
 
 ```
+## Decision Tree Summary
+
+### Tree Structure
+The tree is split into nodes, with each node representing a decision point based on a particular variable. The tree starts with the root node (Node number 1) and branches down to subsequent nodes.
+
+### Complexity Parameters
+The complexity parameters (CP) help control the size of the tree to prevent overfitting. Smaller CP values result in larger trees.
+
+### Variable Importance
+The variable importance section indicates the importance of each predictor variable in making predictions. In this case, it looks like "bmi" (body mass index) is the most important variable, followed by "children," "charges," "smoker," "age," and "region."
+
+### Nodes
+Each node in the tree is associated with specific information:
+- **Node Number:** Identifies the node.
+- **Predicted Class:** The predicted class (0 or 1) at that node.
+- **Expected Loss:** The expected misclassification rate at that node.
+- **P(node):** The proportion of observations in that node.
+
+### Splitting Criteria
+The "Primary Splits" indicate the conditions for splitting nodes. For example, "bmi < 25.9825" means that if a certain observation has a BMI less than 25.9825, it follows the left branch; otherwise, it follows the right branch.
+
+### Surrogate Splits
+Surrogate splits are alternative rules used when primary splits cannot be applied. They provide a backup in case the primary split is not informative.
+
+### Example Interpretation
+For Node 1:
+- **Predicted class:** 1 (insurance claim)
+- **Expected loss:** 0.415
+- The node is split based on various conditions, with "bmi" being the most significant.
+
+For Node 2:
+- **Predicted class:** 0 (no insurance claim)
+- **Expected loss:** 0.213
+- The node is split based on "smoker," "charges," "bmi," "age," and "region."
+
+For Node 3:
+- **Predicted class:** 1 (insurance claim)
+- **Expected loss:** 0.305
+- The node is split based on "children," "smoker," "charges," "age," and "bmi."
 
 The *root node error* is the percent of incorrectly classified cases at the first (root) splitting node. That is,
 
 $$
 \text{Root Node Error} = \frac{\text{No. of 1's in the training dataset}}{\text{Size of the training dataset}}
 $$
-
+Rootnode error at the first step of the tree construction
 ```{r}
 (rootnode_err <- sum(insurance.data.train$insuranceclaim==1)/nrow(insurance.data.train))
 ```
@@ -927,23 +961,34 @@ $$
 ```{r}
 printcp(fit.allp) 
 ```
+The root node error is the misclassification rate at the beginning of tree construction. In this case, the error is 41.5%, indicating that 41.5% of instances are misclassified based on the initial split. CP is a tuning parameter controlling the trade-off between tree complexity and goodness of fit. The initial CP is 0.3153153, indicating a complex tree it decreased as it scaled down as the tree constructed and was fitted more with the data and the same with the rel error and xerror. We can observe the number of splits from 0 to 36. 
+
 
 ```{r}
 max(fit.allp$cptable[,"nsplit"])
 min(fit.allp$cptable[,"nsplit"])
 ```
+From the complexity table (cptable) associated with the fitted tree model, the most complex version of the tree, with all possible splits, involves 36 nodes or decision points.A minimum value of 0 suggests that a model with no splits, essentially a single-node tree (just the root).
+
+Following is the plot of **X-val Relative Error vs cp Vs size of tree Plot** where we can observe the line goes down from 1.0 to 0.0 indicating that the data was fitted with the model by K- validations.
 ```{r}
+
 plotcp(fit.allp)
+
 ```
 ```{r}
 (cp= fit.allp$cptable[which.min(fit.allp$cptable[, "xerror"]), "CP"])
 (xerr = fit.allp$cptable[which.min(fit.allp$cptable[, "xerror"]), "xerror"])
 ```
+The values suggest that the tree model with a complexity parameter of 0.001 has the minimum cross-validated error of approximately 0.0518. This model strikes a balance between complexity and accuracy, making it a reasonable choice based on cross-validated performance.
 
+Following plot indicates the split in each level of the tree with the details of response vairables(0/1), root node error as well as the percent of data in that split. There is a condition splecified at the split.
 ```{r}
 
-rpart.plot(fit.allp, extra = "auto")
+rpart.plot(fit.allp, extra = "auto", main = "Fitted tree using CART for the Insurance data")
+
 ```
+
 ```{r}
 
 test_df <- data.frame(actual = insurance.data.test$insuranceclaim, pred = NA)
@@ -951,6 +996,8 @@ test_df$pred <- predict(fit.allp, newdata = insurance.data.test, type = "class")
 (conf_matrix_base <- table(test_df$pred, test_df$actual)) #confusion matrix
 
 ```
+The model correctly identified 154 cases where insurance claims were made (True Positives) and accurately predicted 108 instances of no claims (True Negatives). However, it made a small number of errors, with 3 instances of falsely predicting a claim (False Positives) and 3 instances of failing to predict an actual claim (False Negatives).
+
 ```{r}
 
 sensitivity(conf_matrix_base)
@@ -959,7 +1006,13 @@ specificity(conf_matrix_base)
    conf_matrix_base[2, 1])/sum(conf_matrix_base) 
 
 ```
+The sensitivity of the model, also known as recall, is approximately 97.30%. This indicates the proportion of actual insurance claims correctly identified by the model.
 
+The specificity, measuring the proportion of no insurance claims correctly identified, is approximately 98.09%.
+
+The overall mis classification rate, representing the proportion of incorrect predictions out of the total predictions, is approximately 2.24%.
+
+Bellow code is to fit the model with the cp paramter to 0.0001 and the the results looks similar to the cp parameter 0.001.
 ```{r}
 
 #Hyper Parameter Tuning 
@@ -978,9 +1031,19 @@ specificity(conf_matrix_base)
 (mis.rate <- conf_matrix_base[1, 2] + 
    conf_matrix_base[2, 1])/sum(conf_matrix_base) 
 
-```
-```{r}
+test_df <- data.frame(actual = insurance.data.train$insuranceclaim, pred = NA)
+test_df$pred <- predict(fit.allp, newdata = insurance.data.train, type = "class")
+(tab <- table(test_df$pred, test_df$actual)) #confusion matrix
 
+
+sum(diag(tab))/sum(tab)
+sensitivity(tab)
+specificity(tab)
+
+```
+
+Bellow code is to fit the model with the cp paramter to 0.01 and the the results looks similar to the cp parameter 0.001 and 0.0001.
+```{r}
 
 fit.allf <- rpart(insuranceclaim ~., method = "class", data = insurance.data.train,
                   control = rpart.control(cp = 0.1))
@@ -998,16 +1061,20 @@ specificity(conf_matrix_base)
 
 ```
 
+The function prune() can be used to select a subtree of the tree obtained with rpart() if we think (by looking at the xerror estimates) that we would fit the data better by pruning.
+
 ```{r}
 #Prune the tree
 pfit.allp <- prune(fit.allp, cp =
     fit.allp$cptable[which.min(fit.allp$cptable[, "xerror"]), "CP"])
-rpart.plot(pfit.allp, extra = "auto")
+rpart.plot(pfit.allp, extra = "auto", main = "Pruned Decision Tree")
 
 summary(pfit.allp)
 
 ```
+
 ```{r}
+
 
 #Measures of Predictive Performance
 rootnode_err <- sum(insurance.data.train$insuranceclaim==1)/nrow(insurance.data.train)
@@ -1019,6 +1086,12 @@ pxerr = pfit.allp$cptable[which.min(pfit.allp$cptable[, "xerror"]), "xerror"]
 (pcv.err_rate <- rootnode_err*pxerr)
 
 ```
+The presubstitution error rate, which evaluates the error rate if predictions are made solely based on the overall class distribution in the training data, is 0%.
+
+The post-pruning cross-validation error rate, representing the estimated error rate after pruning the tree using cross-validation, is approximately 3.03%.
+
+In conclusion, the post-pruning cross-validation error suggests that the pruned classification tree performs well in terms of predictive accuracy on unseen data.
+
 
 ```{r}
 
@@ -1033,8 +1106,35 @@ specificity(conf_matrix_pruned_tree)
 (conf_matrix_pruned_tree[1, 2] + 
     conf_matrix_pruned_tree[2, 1])/sum(conf_matrix_pruned_tree) 
 
+TP <- conf_matrix_pruned_tree[2, 2]  # True Positives
+TN <- conf_matrix_pruned_tree[1, 1]  # True Negatives
+FP <- conf_matrix_pruned_tree[1, 2]  # False Positives
+FN <- conf_matrix_pruned_tree[2, 1]  # False Negatives
+
+# Calculate Accuracy
+accuracy <- (TP + TN) / (TP + TN + FP + FN)
+
+# Print the accuracy
+print(paste("Accuracy:", round(accuracy, 4)))
 
 ```
+The pruned classification tree demonstrates exceptional performance on the test data, with sensitivity, reaching approximately 97.30%. Moreover, the specificity is impressively high at approximately 98.09%, indicating the model's proficiency in correctly recognizing instances where no insurance claims are made.
+
+In terms of overall accuracy, the pruned tree exhibits a remarkably low mis classification error rate of about 2.24%. This metric takes into account both false positives (incorrectly predicted insurance claims) and false negatives (missed insurance claims), offering a comprehensive view of the model's performance. The minimal mis classification error underscores the pruned tree's efficacy in making precise predictions across the diverse scenarios presented in the test data. Overall, these results highlight the robustness and accuracy of the pruned classification tree in effectively identifying both positive and negative cases in the context of insurance claims.
+
+#4. Random Forest 
+
+The random forest (RF) is an ensemble learning method which consists of aggregating a large number of decision trees to avoid overfitting and build a better classification model 
+
+The word random appears because in training the data, predictors are chosen randomly from the full set of predictors.
+
+The word forest is used because output from multiple trees are used to make a decision. That is, two types of randomnesses go into constructing a random forest:
+
+each tree is built on a random sample from the dataset, and
+
+at each tree node, a subset of features are randomly selected to generate the best split.
+
+Out-of-bag (OOB) observations from the first bootstrap sample are those observations in the training sample that did not enter the first bootstrap sample. Similarly, we will have OOB observations corresponding to each bootstrap sample (decision tree).
 
 ```{r}
 # Random Forest 
@@ -1042,17 +1142,23 @@ specificity(conf_matrix_pruned_tree)
 fit.rf.ranger <- ranger(insuranceclaim ~ ., data = insurance.data.train, 
                    importance = 'impurity', mtry = 3)
 print(fit.rf.ranger)
-```
 
+```
+The Ranger regression model, built on the insurance data, comprises 500 trees with a sample size of 1070 and incorporates seven independent variables. For each split, the model randomly samples three variables, and the target node size is set at 5. The variable importance is assessed based on impurity, and the split rule is determined by variance. The out-of-bag prediction error (mean squared error) is measured at 0.03085552, indicating a relatively **low prediction error**, while the R-squared value stands at 0.8730195, signifying a **high proportion of explained variance** in the target variable. These results collectively suggest that the Ranger regression model performs well in predicting insurance claims, offering accuracy and a strong ability to capture variability in the data.
+
+After training a RF, we would like to understand which variables have the most predictive power. Variables with high importance will have a significant impact on the binary outcomes, while we may consider dropping variables with low importance from the model (leading to a more parsimonious model). We can use the vi() function in the R package vip to extract and print a tibble of variable importance scores. We can also construct a variable importance plot using the vip() function, as shown below.
 ```{r}
 
 (v1 <- vi(fit.rf.ranger))
-vip(v1)
+vip_plot <- vip(v1)
+vip_plot + ggtitle("Variable Importance Plot for Insurance Data")
+
 ```
+**Bmi, Children are having most predictive power** where as Charges, smoker are have intermediate power and Sex, Region, Age variables are having less predictive power an let's develop a model by droping those columns one by one.
 
 ```{r}
 
-# Assuming your predictions are stored in the variable 'pred'
+# Assuming our predictions are stored in the variable 'pred'
 pred <- predict(fit.rf.ranger, data = insurance.data.test)
 
 # Create a data frame with actual and predicted values
@@ -1066,6 +1172,8 @@ conf_matrix_rf <- table(test_df$pred, test_df$actual)
 print(conf_matrix_rf)
 
 ```
+The Random Forest model on the test data achieved 155 True Positives, correctly predicting insurance claims, and 107 True Negatives, accurately predicting cases with no insurance claims. However, it made 4 False Positives, wrongly predicting claims where none occurred, and 2 False Negatives, missing actual claims. Overall, the model demonstrates good predictive accuracy but has some room for improvement in minimizing false predictions.
+
 
 ```{r}
 
@@ -1076,9 +1184,21 @@ specificity(conf_matrix_rf)
 # Missclassification error rate:
 (conf_matrix_rf[1,2] + conf_matrix_rf[2,1])/sum(conf_matrix_rf) 
 
-```
+TP <- conf_matrix_rf[2, 2]  # True Positives
+TN <- conf_matrix_rf[1, 1]  # True Negatives
+FP <- conf_matrix_rf[1, 2]  # False Positives
+FN <- conf_matrix_rf[2, 1]  # False Negatives
 
-#Dropping the columns which are hvaing the less vip value
+# Calculate Accuracy
+accuracy <- (TP + TN) / (TP + TN + FP + FN)
+
+# Print the accuracy
+print(paste("Accuracy:", round(accuracy, 4)))
+
+```
+The Random Forest model exhibits robust performance on the test data, capturing approximately 96.40% of actual insurance claims and accurately identifying around 98.73% of no insurance claims. The model's overall accuracy remains high, with a misclassification error rate of approximately 2.24%, reflecting its effectiveness in classifying instances. This indicates a reliable and well-performing model for predicting insurance claims.
+
+#Dropping the columns which are having the less vip value
 
 ```{r}
 
@@ -1089,7 +1209,8 @@ fit.rf.ranger <- ranger(insuranceclaim ~ bmi+children+age+smoker+charges+region,
 print(fit.rf.ranger)
 
 (v1 <- vi(fit.rf.ranger))
-vip(v1)
+vip_plot <- vip(v1)
+vip_plot + ggtitle("Variable Importance Plot - Bmi, Children, Smoker, Charges, Age, Region")
 
 pred <- predict(fit.rf.ranger, data = insurance.data.test)
 # Create a data frame with actual and predicted values
@@ -1109,6 +1230,10 @@ specificity(conf_matrix_rf)
 (conf_matrix_rf[1,2] + conf_matrix_rf[2,1])/sum(conf_matrix_rf) 
 
 ```
+
+The Random Forest model assigns importance scores to different predictors for predicting insurance claims. BMI emerges as a highly influential factor (96.19), indicating its significant impact on predictions. The number of children follows closely, with a substantial importance score of 75.34, emphasizing its strong influence on claim likelihood. Charges contribute significantly (33.73), while the smoking status, age, and region also play roles, albeit to varying extents. Specifically, being a smoker has moderate importance (25.58), age is important (20.44), and region is comparatively less influential (2.90). In summary, BMI and the number of children are the most critical factors, shaping the Random Forest model's predictions for insurance claims.
+
+There is a significant impact on removing the columns with the less predicitve power as the sensitivity and specificity got improved.
 
 ```{r}
 
@@ -1119,7 +1244,8 @@ fit.rf.ranger <- ranger(insuranceclaim ~ bmi+children+age+smoker+charges, data =
 print(fit.rf.ranger)
 
 (v1 <- vi(fit.rf.ranger))
-vip(v1)
+vip_plot <- vip(v1)
+vip_plot + ggtitle("Variable Importance Plot - Bmi, Children, Smoker, Charges, Age")
 
 pred <- predict(fit.rf.ranger, data = insurance.data.test)
 # Create a data frame with actual and predicted values
@@ -1138,7 +1264,21 @@ specificity(conf_matrix_rf)
 # Missclassification error rate:
 (conf_matrix_rf[1,2] + conf_matrix_rf[2,1])/sum(conf_matrix_rf) 
 
+pred <- predict(fit.rf.ranger, data = insurance.data.train)
+# Create a data frame with actual and predicted values
+test_df <- data.frame(actual = insurance.data.train$insuranceclaim,
+                      pred = ifelse(pred$predictions > 0.5, 1, 0))
+# Create a confusion matrix
+tab <- table(test_df$pred, test_df$actual)
+
+
+sum(diag(tab))/sum(tab)
+sensitivity(tab)
+specificity(tab)
+
 ```
+The Ranger Random Forest model, built on predictors including BMI, number of children, age, smoker status, and charges, exhibits high predictive performance. The prediction error is low (MSE = 0.0204), indicating accurate predictions. The R-squared value of 0.916 signifies the model's capability to explain variance in the data. The confusion matrix reveals a high accuracy of 98.20%, with sensitivity (True Positive Rate) and specificity (True Negative Rate) at 99.36% and 98.20%, respectively. The misclassification error rate is minimal at 1.12%. In terms of variable importance, BMI stands out as the most crucial predictor (99.61), followed by the number of children (79.02), charges (30.34), smoker status (27.86), and age (19.23). This suggests that BMI and the number of children play pivotal roles in predicting insurance claims, as emphasized by their high importance scores.
+
 
 ```{r}
 
@@ -1149,7 +1289,8 @@ fit.rf.ranger <- ranger(insuranceclaim ~ bmi+children+smoker+charges, data = ins
 print(fit.rf.ranger)
 
 (v1 <- vi(fit.rf.ranger))
-vip(v1)
+vip_plot <- vip(v1)
+vip_plot + ggtitle("Variable Importance Plot - Bmi, Children, Smoker, Charges")
 
 pred <- predict(fit.rf.ranger, data = insurance.data.test)
 # Create a data frame with actual and predicted values
@@ -1168,10 +1309,45 @@ specificity(conf_matrix_rf)
 # Missclassification error rate:
 (conf_matrix_rf[1,2] + conf_matrix_rf[2,1])/sum(conf_matrix_rf) 
 
+
+TP <- conf_matrix_rf[2, 2]  # True Positives
+TN <- conf_matrix_rf[1, 1]  # True Negatives
+FP <- conf_matrix_rf[1, 2]  # False Positives
+FN <- conf_matrix_rf[2, 1]  # False Negatives
+
+# Calculate Accuracy
+accuracy <- (TP + TN) / (TP + TN + FP + FN)
+
+# Print the accuracy
+print(paste("Accuracy:", round(accuracy, 4)))
+
+
+pred <- predict(fit.rf.ranger, data = insurance.data.train)
+# Create a data frame with actual and predicted values
+test_df <- data.frame(actual = insurance.data.train$insuranceclaim,
+                      pred = ifelse(pred$predictions > 0.5, 1, 0))
+# Create a confusion matrix
+tab <- table(test_df$pred, test_df$actual)
+
+
+sum(diag(tab))/sum(tab)
+sensitivity(tab)
+specificity(tab)
+
 ```
+The Ranger Random Forest model, constructed with predictors including BMI, number of children, smoker status, and charges, demonstrates strong predictive performance. The prediction error is relatively low, with a mean squared error (MSE) of 0.0247, indicating accurate predictions. The R-squared value of 0.898 suggests the model's ability to explain variance in the data. The confusion matrix reveals a high accuracy of 98.20%, with sensitivity (True Positive Rate) and specificity (True Negative Rate) at 98.09% and 98.20%, respectively. The misclassification error rate is moderate at 1.87%. In terms of variable importance, BMI is identified as the most crucial predictor, with an importance score of 101.22, followed by the number of children (80.55), charges (42.08), and smoker status (31.58). This underscores the significance of BMI and the number of children in predicting insurance claims, as highlighted by their high importance scores.
+
+Results looks similar after dropping the region column to that of the age and sex.
 
 # 5. Gradient Boosting
 
+Like random forests, boosting is also an out-of-the box learning algorithm. It gives good predictive performance for the response, usually in high-dimensional settings, with a large number of features.
+
+Random forests build an ensemble of independent deep trees. In contrast, gradient boosting algorithms (GBMs) successively build an ensemble of shallow trees, each tree learning from the previous tree. When combined, these trees provide a highly accurate predictive algorithm.
+
+For binary response modeling, the idea of boosting was introduced to improve the performance of weak learners. This was done by resampling the training data responses, giving more weight to the misclassified ones, thereby leading to a refined classifier (binary model) which would boost feature performance, especially in ambiguous areas of the feature space. A popular variant is the gradient boosting algorithm, and XGBoost (acronym for eXtreme Gradient Boosting.
+
+Following code prepare the data matrix of train and test dataset where to be utilised for the implementation of the xgboost package.
 ```{r}
 
 # Transform the predictor matrix using dummy (or indicator or one-hot) encoding 
@@ -1181,25 +1357,28 @@ matrix_predictors.test <-
   as.matrix(sparse.model.matrix(insuranceclaim ~., data = insurance.data.test))[, -1]
 ```
 
+Converting the insuramceclaim column to numeric and converting the train data to the format of xgb.DMatrix
 ```{r}
 # Train dataset
 pred.train.gbm <- data.matrix(matrix_predictors.train) # predictors only
 #convert factor to numeric
 insurance.data.train.gbm <- as.numeric(as.character(insurance.data.train$insuranceclaim)) 
+dtrain <- xgb.DMatrix(data = pred.train.gbm, label = insurance.data.train.gbm)
+
 ```
 
+Converting the insuramceclaim column to numeric and converting the test data to the format of xgb.DMatrix
 ```{r}
-dtrain <- xgb.DMatrix(data = pred.train.gbm, label = insurance.data.train.gbm)
+
 # Test dataset
 pred.test.gbm <- data.matrix(matrix_predictors.test) # predictors only
  #convert factor to numeric
 insurance.data.test.gbm <- as.numeric(as.character(insurance.data.test$insuranceclaim))
-```
-
-```{r}
 dtest <- xgb.DMatrix(data = pred.test.gbm, label = insurance.data.test.gbm)
+
 ```
 
+XGBoost model fitting with objective as binary:logistic and nrounds as 2 and the accuracy got improved on both the test and train data set.
 ```{r}
 watchlist <- list(train = dtrain, test = dtest)
 param <- list(max_depth = 2, eta = 1, nthread = 2,
@@ -1209,10 +1388,19 @@ model.xgb <- xgb.train(param, dtrain, nrounds = 2, watchlist)
 
 ```
 
+Following is the plot of the single tree obtain 
 ```{r}
-xgb.importance.plot(model.xgb)
-```
+# Assuming 'model.xgb' is our XGBoost model
 
+tree_plot <- xgb.plot.tree(model = model.xgb, trees = 1, features_names = colnames(pred.train.gbm)) 
+
+htmlwidgets::saveWidget(tree_plot, "tree_plot.html")
+
+# Include the saved HTML file in our R Markdown document
+knitr::include_graphics("tree_plot.html")
+
+```
+From the above plot we can interpret that the a condition was applied on the chargers column as it's gain value is more with 74 where if it is less than 30175.7773 then it check for the children(gain is 73 ) else bmi(2.4) and later we have further splits based on this.
 
 ```{r}
 
@@ -1220,11 +1408,28 @@ pred.y.train <- predict(model.xgb, pred.train.gbm)
 prediction.train <- as.numeric(pred.y.train > 0.5)
 # Measure prediction accuracy on train data
 (tab<-table(insurance.data.train.gbm, prediction.train))
+
+sum(diag(tab))/sum(tab)
+sensitivity(tab)
+specificity(tab)
+
 ```
 
-```{r}
-sum(diag(tab))/sum(tab)
-```
+True Positive (TP): 553 cases where the actual class is 1, and the model predicted 1.
+True Negative (TN): 363 cases where the actual class is 0, and the model predicted 0.
+False Positive (FP): 81 cases where the actual class is 0, but the model predicted 1.
+False Negative (FN): 73 cases where the actual class is 1, but the model predicted 0.
+
+Interpretation:
+Accuracy: (TP + TN) / (TP + TN + FP + FN) = (553 + 363) / (553 + 363 + 81 + 73) ≈ 86.3%. This is the proportion of correctly classified instances out of the total instances.
+
+Precision (Positive Predictive Value): TP / (TP + FP) = 553 / (553 + 81) ≈ 87.2%. This is the proportion of instances predicted as positive that are actually positive.
+
+Recall (Sensitivity, True Positive Rate): TP / (TP + FN) = 553 / (553 + 73) ≈ 88.3%. This is the proportion of actual positives that were correctly predicted as positive.
+
+Specificity (True Negative Rate): TN / (TN + FP) = 363 / (363 + 81) ≈ 81.7%. This is the proportion of actual negatives that were correctly predicted as negative.
+
+In summary, the model seems to have reasonably good performance on the training data, with a high accuracy, precision, recall, and specificity. 
 
 ```{r}
 pred.y = predict(model.xgb, pred.test.gbm)
@@ -1232,10 +1437,30 @@ prediction <- as.numeric(pred.y > 0.5)
 # Measure prediction accuracy on test data
 (tab1<-table(insurance.data.test.gbm,prediction))
 
-sum(diag(tab1))/sum(tab1)
+sensitivity(tab)
+specificity(tab)
+sum(diag(tab))/sum(tab)
 
 ```
+True Positive (TP): 134 cases where the actual class is 1, and the model predicted 1.
+True Negative (TN): 96 cases where the actual class is 0, and the model predicted 0.
+False Positive (FP): 15 cases where the actual class is 0, but the model predicted 1.
+False Negative (FN): 23 cases where the actual class is 1, but the model predicted 0.
 
+Interpretation:
+Accuracy: (TP + TN) / (TP + TN + FP + FN) = (134 + 96) / (134 + 96 + 15 + 23) ≈ 85.7%. This is the proportion of correctly classified instances out of the total instances.
+
+Precision (Positive Predictive Value): TP / (TP + FP) = 134 / (134 + 15) ≈ 89.9%. This is the proportion of instances predicted as positive that are actually positive.
+
+Recall (Sensitivity, True Positive Rate): TP / (TP + FN) = 134 / (134 + 23) ≈ 85.3%. This is the proportion of actual positives that were correctly predicted as positive.
+
+Specificity (True Negative Rate): TN / (TN + FP) = 96 / (96 + 15) ≈ 86.5%. This is the proportion of actual negatives that were correctly predicted as negative.
+
+F1 Score: The harmonic mean of precision and recall. It provides a balance between precision and recall. 2 * (Precision * Recall) / (Precision + Recall).
+
+In summary, the model appears to have reasonably good performance on the test data, with a high accuracy, precision, recall, and specificity. Similar to the training data
+
+Following is the code to implement the gradiant descent algorithm with increased number of rounts in the algorithm from 2 to 10 and 15.
 ```{r}
 # 10 rounds from 2 
 
@@ -1251,15 +1476,20 @@ prediction.train <- as.numeric(pred.y.train > 0.5)
 (tab<-table(insurance.data.train.gbm, prediction.train))
 
 sum(diag(tab))/sum(tab)
+sensitivity(tab)
+specificity(tab)
 
 pred.y = predict(model.xgb, pred.test.gbm)
 prediction <- as.numeric(pred.y > 0.5)
 # Measure prediction accuracy on test data
 (tab1<-table(insurance.data.test.gbm,prediction))
-
+sensitivity(tab1)
+specificity(tab1)
 sum(diag(tab1))/sum(tab1)
 
 ```
+Accuracy of the train data set is 92% where as the test data is 88% with the 10 number of rounds which is an improvement in the values with 2 number of rounds.
+
 ```{r}
 # 15 rounds 
 
@@ -1267,22 +1497,28 @@ watchlist <- list(train = dtrain, test = dtest)
 param <- list(max_depth = 2, eta = 1, nthread = 2,
               objective = "binary:logistic", eval_metric = "auc")
 
-model.xgb <- xgb.train(param, dtrain, nrounds = 10, watchlist)
+model.xgb.15 <- xgb.train(param, dtrain, nrounds = 15, watchlist)
 
-pred.y.train <- predict(model.xgb, pred.train.gbm)
+pred.y.train <- predict(model.xgb.15, pred.train.gbm)
 prediction.train <- as.numeric(pred.y.train > 0.5)
 # Measure prediction accuracy on train data
 (tab<-table(insurance.data.train.gbm, prediction.train))
 
 sum(diag(tab))/sum(tab)
+sensitivity(tab)
+specificity(tab)
 
-pred.y = predict(model.xgb, pred.test.gbm)
+pred.y = predict(model.xgb.15, pred.test.gbm)
 prediction <- as.numeric(pred.y > 0.5)
 # Measure prediction accuracy on test data
 (tab1<-table(insurance.data.test.gbm,prediction))
 
+sensitivity(tab1)
+specificity(tab1)
 sum(diag(tab1))/sum(tab1)
 
 
 ```
+Accuracy of the train data set is 94% where as the test data is 89% with the 15 number of rounds which is an improvement in the values with 2 number of rounds.
+
 
