@@ -1,0 +1,58 @@
+---
+title: "Analyzing Insurance Claims for Future Financial Safeguard"
+author: 
+  - "Lohit Marla"
+  - "Nikhil Kunduru"
+output: html_document
+---
+
+##### Abstract
+In the realm of insurance, the anticipation of claims plays a pivotal role in risk management and financial planning. This project delves into the challenge of predicting insurance claims, a task made intricate by a dataset characterized by its modest sample size and a slight imbalance between claimed and unclaimed instances. The objective is to surmount these obstacles and construct a robust predictive model capable of accurately classifying insurance claims. The project will navigate through methodologies to address imbalances, optimize feature extraction, and employ advanced predictive modeling techniques such as classification and regression trees, random forest, xgboost algorithms, and statistical models such as logit and probit. By tackling these complexities head-on, the study aims to contribute valuable insights to the field of insurance analytics, enabling more informed decision-making and risk assessment.
+
+##### Project Proposal
+
+Introduction
+The project focuses on predicting insurance claims using decision trees and statistical models. The dataset presents challenges such as a moderate sample size and a class imbalance, which will be addressed through systematic analysis and model implementation.
+
+##### Objectives
+- Implement various machine decision trees and statistical models.
+- Address challenges related to dataset characteristics.
+- Optimize predictive models for insurance claim classification.
+- Contribute insights to the field of insurance analytics.
+
+#### Approach
+
+**Exploratory Data Analysis (EDA)**
+- Gain insights into dataset structure, features, and patterns.
+- Identify and address data quality issues.
+
+**Data Preprocessing**
+
+**Model Selection**
+1. **Classification and Regression Trees (CART):** Decision tree models for classification.
+2. **Random Forest:** Ensemble model for enhanced accuracy.
+3. **XGBoost Algorithm:** Efficient algorithm for structured data.
+4. **Logistic Regression (Logit):** Statistical model for binary classification.
+5. **Probit Regression (Probit):** Alternative statistical model.
+
+**Model Evaluation and Optimization**
+- Employ metrics for model evaluation.
+- Implement hyperparameter tuning and optimization.
+
+##### Interpretability and Explainability
+- Emphasize model interpretability.
+- Explore techniques for explaining model predictions.
+
+##### Expected Takeaways
+1. Comprehensive understanding of machine learning algorithms.
+2. Practical skills in data preprocessing and model building.
+3. Improved problem-solving skills in handling real-world challenges.
+4. Application of coursework concepts in a practical setting.
+
+##### Usefulness
+The project aims to provide valuable insights into effective predictive modeling for insurance claim prediction. The findings will contribute to more informed decision-making and risk assessment in the insurance industry.
+
+
+The dataset presents critical demographic and lifestyle information related to health insurance.
+
+
