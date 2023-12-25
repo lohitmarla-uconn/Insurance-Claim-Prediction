@@ -73,48 +73,9 @@ Categorical predictor variables, including sex, children, smoker, and region, co
 The response variables exhibit two levels, 0 and 1, denoting no claim and claim, respectively, with counts of 555 and 782.
 
 Dirstribution of the Response variable 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-suppressWarnings({
-library(ggplot2)
-library(caret)
-library(dplyr)
-library(vip)
-library(ranger)
-library(rpart)
-library(rpart.plot)
-library(pROC)
-library(xgboost)
-library(Matrix)
-library(DiagrammeR)
-library(knitr)
-})
 
-suppressWarnings({
-insurance.data <- read.csv("~/Documents/GitHub/GitHub/Insurance-Claim-Prediction/data/insurance.csv")
-invisible(insurance.data <- unique(insurance.data))
-invisible(sapply(insurance.data, function(x) unique(x)))
-percentage_data <- table(insurance.data$insuranceclaim) / nrow(insurance.data) * 100
 
-# Create a data frame for plotting
-plot_data <- data.frame(insuranceclaim = as.factor(names(percentage_data)),
-                        percentage = as.numeric(percentage_data))
-})
-```
-
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-# Plotting
-ggplot(plot_data, aes(x = insuranceclaim, y = percentage)) +
-  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
-  geom_text(aes(label = sprintf("%.1f%%", percentage)),
-            position = position_stack(vjust = 0.5),   # Adjust vjust for vertical position
-            color = "black", size = 3) +
-  labs(title = "Distribution of Insurance Claims: Non-Claims (0) vs. Claims (1)",
-       x = "Insurance Claim",
-       y = "Percentage") 
-
-options(warn = -1) 
-
-```
+![](Insurance_Claim_Prediction_Report_files/figure-latex/unnamed-chunk-2-1.pdf)<!-- --> 
 
 \newpage
 
@@ -170,46 +131,18 @@ After fitting the full and both Logit Model we reject the null hypothesis with e
 **Age, BMI, number of children, and smoking** status appear to be significant predictors of insurance claims.
 - Charges and region may not be statistically significant predictors in this model.
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-
-set.seed(123457)
-train.prop <- 0.80
-strats <- insurance.data$insuranceclaim
-rr <- split(1:length(strats), strats)
-idx <- sort(as.numeric(unlist(sapply(rr, 
-        function(x) sample(x, length(x)*train.prop)))))
-insurance.data.train <- insurance.data[idx, ]
-insurance.data.test <- insurance.data[-idx, ]
-
-
-#full binary logit model
-full.logit <- glm(insuranceclaim ~ . ,data = insurance.data.train, 
-                  family = binomial(link = "logit"))
-
-null.logit <- glm(insuranceclaim ~ 1 ,data = insurance.data.train, 
-                  family = binomial(link = "logit"))
-
-both.logit <- step(null.logit, list(lower = formula(null.logit),
-                                    upper = formula(full.logit)),
-                   direction = "both", trace = 0, data = insurance.data.train)
-
-# Set up the layout
-par(mfrow = c(1, 2), oma = c(0, 2, 0, 0))
-
-# Plot the first qqPlot
-car::qqPlot(residuals(full.logit), main = NA, pch = 19, col = 2, cex = 0.7)
-
-# Plot the second qqPlot
-car::qqPlot(residuals(both.logit), main = NA, pch = 19, col = 2, cex = 0.7)
-
-# Add a common title for the entire layout
-mtext("Quantile-Quantile Plots for Residuals - Logit", side = 3, outer = TRUE, line = -2)
-
-# Reset the layout to a single plot
-par(mfrow = c(1, 1), oma = c(0, 0, 0, 0))
-
 
 ```
+##  933 1117 
+##  759  894
+```
+
+```
+##  933 1117 
+##  759  894
+```
+
+![](Insurance_Claim_Prediction_Report_files/figure-latex/unnamed-chunk-3-1.pdf)<!-- --> 
 From the above residual plot we can observe most of the data points were normal except few data points. Fitted the model by removing the outliers with the standard deviation greater than 3 times however even though the AIC values got down **normality assumption did not satisfy**.
 
 2. **Probit Regression (Probit):** Alternative statistical model.
@@ -246,30 +179,18 @@ After fitting the probit model, we reject the null hypothesis as there is a sign
 The logistic regression model was fitted to predict insurance claims based on various factors. The significant predictors include age, BMI, number of children, smoking status, and certain regions. Age and BMI showed positive associations with the likelihood of making an insurance claim, while having children had a negative impact, with the odds decreasing as the number of children increased. Smoking status was a strong positive predictor, indicating higher odds for smokers. The specific impact of regions varied, with some regions contributing to a decrease in the odds of a claim. The model's overall significance was confirmed by the Wald test (Chi-square = 418.14, df = 13, p < 2e-16). The model's goodness of fit was assessed using the Deviance statistic, with a residual deviance of 765.01 on 1055 degrees of freedom. The AIC value was 793.01, indicating a relatively good fit. Overall, the logistic regression model provides insights into the factors influencing insurance claims, with age, BMI, smoking status, and region being key determinants.
 
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-
-# Probit Full Model
-
-full.probit <- glm(insuranceclaim ~ . ,data = insurance.data.train , 
-                   family = binomial(link = "probit"))
-full.predictors.probit <- glm(insuranceclaim ~ age + bmi + children + smoker ,data = insurance.data.train , 
-                   family = binomial(link = "probit"))
-
-par(mfrow = c(1, 2))
-
-# Plot the first qqPlot
-car::qqPlot(residuals(full.probit), main = NA, pch = 19, col = 2, cex = 0.7)
-
-# Plot the second qqPlot
-car::qqPlot(residuals(full.predictors.probit), main = NA, pch = 19, col = 2, cex = 0.7)
-
-# Add a common title for the entire layout
-title("Quantile-Quantile Plots for Residuals - Probit")
-
-# Reset the layout to a single plot
-par(mfrow = c(1, 1))
 
 ```
+##  933 1117 
+##  759  894
+```
+
+```
+##  933 1117 
+##  759  894
+```
+
+![](Insurance_Claim_Prediction_Report_files/figure-latex/unnamed-chunk-4-1.pdf)<!-- --> 
 From the above residual plot it is clear that most of the data points were normal except few data points. Fitted the model by removing the outliers with the standard deviation greater than 3 times however even though the AIC values got down **normality assumption did not satisfy**.
 
 3. **Classification and Regression Trees (CART):** Decision tree models for classification.
@@ -287,15 +208,7 @@ $$
 $$
 where, Error(Tree) is the fraction of misclassified cases and $\mathcal{N}(\mbox{Tree})$ is the number of leaf nodes in the tree.
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-
-fit.allp <- rpart(insuranceclaim ~., method = "class", data = insurance.data.train,
-                  control = rpart.control(minsplit = 1, cp = 0.001))
-pfit.allp <- prune(fit.allp, cp =
-    fit.allp$cptable[which.min(fit.allp$cptable[, "xerror"]), "CP"])
-rpart.plot(pfit.allp, extra = "auto", main = "Pruned Decision Tree")
-
-```
+![](Insurance_Claim_Prediction_Report_files/figure-latex/unnamed-chunk-5-1.pdf)<!-- --> 
 Fitting the CART algorithm and pruning the tree we can view the refined tree with all the conditions at each level including the details of root node error and percent of variability. At the low level of the tree we can view the leaf nodes which classies the response vairables based on the above conditions.
 Also, implemented tree by various cp values such as 0.0001 and 0.1 which yielded the similar result.
 
@@ -306,15 +219,21 @@ The random forest (RF) is an ensemble learning method which consists of aggregat
 
 The Ranger regression model, built on the insurance data, comprises 500 trees with a sample size of 1070 and incorporates seven independent variables. For each split, the model randomly samples three variables, and the target node size is set at 5. The variable importance is assessed based on impurity, and the split rule is determined by variance. The out-of-bag prediction error (mean squared error) is measured at 0.03085552, indicating a relatively low prediction error, while the R-squared value stands at 0.8730195, signifying a high proportion of explained variance in the target variable. These results collectively suggest that the Ranger regression model performs well in predicting insurance claims, offering accuracy and a strong ability to capture variability in the data.
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-# Random Forest 
-fit.rf.ranger <- ranger(insuranceclaim ~ ., data = insurance.data.train, 
-                   importance = 'impurity', mtry = 3)
-(v1 <- vi(fit.rf.ranger))
-vip_plot <- vip(v1)
-print(vip_plot + ggtitle("Variable Importance Plot for Insurance Data"))
 
 ```
+## # A tibble: 7 x 2
+##   Variable Importance
+##   <chr>         <dbl>
+## 1 bmi           97.6 
+## 2 children      72.9 
+## 3 charges       33.1 
+## 4 smoker        23.0 
+## 5 age           21.0 
+## 6 region         3.55
+## 7 sex            1.33
+```
+
+![](Insurance_Claim_Prediction_Report_files/figure-latex/unnamed-chunk-6-1.pdf)<!-- --> 
 Bmi, Children, charges, smoker are having more values from the above **Variable Importance Plot** which indicates the impact those variables shows on predicting the response variable. Implemented the random forest by dropping the columns age, region and sex one after the other and observed improvement in the accuracy on both the train and test data. A popular variant is the gradient boosting algorithm, and XGBoost (acronym for eXtreme Gradient Boosting.
 
 
@@ -344,38 +263,29 @@ The Support Vector Machine (SVM) model is configured as an epsilon-regression wi
 
 ## Results from the Analyses
 
-```{r model-results, echo=FALSE, message=FALSE, warning=FALSE}
-# Assuming df_model_results is your data frame containing the model results
-df_model_results <- data.frame(
-  Model = c("CART", "Random Forest", "Random Forest Reduced Predictors", "XGBoost - 2 Rounds", "XGBoost - 10 Rounds", "XGBoost - 15 Rounds", "SVM"),
-  Test_Acc    = c(0.82, 0.98, 0.98, 0.92, 0.88, 0.89, 0.86),
-  Test_sens = c(0.97, 0.98, 0.98, 0.90, 0.84, 0.90, 0.88),
-  Test_spec = c(0.97, 0.98, 0.92, 0.93, 0.90, 0.89, 0.83),
-  Train_Acc    = c(1,1 ,1 , 0.92, 0.92, 0.94, 0.86 ),
-  Train_sens = c(1, 1, 1, 0.90, 0.90, 0.93, 0.88),
-  Train_spec = c(1, 1, 1, 0.93, 0.93, 0.94, 0.85)
-)
 
-# Print the table using kable
-knitr::kable(df_model_results, caption = "Decision Trees - Model Performance Results")
-```
+Table: Decision Trees - Model Performance Results
+
+|Model                            | Test_Acc| Test_sens| Test_spec| Train_Acc| Train_sens| Train_spec|
+|:--------------------------------|--------:|---------:|---------:|---------:|----------:|----------:|
+|CART                             |     0.82|      0.97|      0.97|      1.00|       1.00|       1.00|
+|Random Forest                    |     0.98|      0.98|      0.98|      1.00|       1.00|       1.00|
+|Random Forest Reduced Predictors |     0.98|      0.98|      0.92|      1.00|       1.00|       1.00|
+|XGBoost - 2 Rounds               |     0.92|      0.90|      0.93|      0.92|       0.90|       0.93|
+|XGBoost - 10 Rounds              |     0.88|      0.84|      0.90|      0.92|       0.90|       0.93|
+|XGBoost - 15 Rounds              |     0.89|      0.90|      0.89|      0.94|       0.93|       0.94|
+|SVM                              |     0.86|      0.88|      0.83|      0.86|       0.88|       0.85|
 
 
 Following are the results of logit and probit models based on the k-fold validations for the train and test data accuracies.
-```{r model-results-probit, echo=FALSE, message=FALSE, warning=FALSE}
-# Assuming df_model_results is your data frame containing the model results
-df_model_results_logit_probit <- data.frame(
-  Model = c( "Logit - Full", "Logit - Both", "Probit"),
-  Train_Accuracy = c(88.49, 87.37, 86.83),
-  Test_Accuracy = c(88.06, 85.45, 86.31),
-  AIC = c(779.29, 772.4223, 786.43),
-  BIC = c(704.0126, 817.1926, 862.65),
-  ROC = c(0.916, 0.913, 0.925)
-)
 
-# Print the table using kable
-knitr::kable(df_model_results_logit_probit, caption = "Bi-nomial Model Performance Results")
-```
+Table: Bi-nomial Model Performance Results
+
+|Model        | Train_Accuracy| Test_Accuracy|      AIC|      BIC|   ROC|
+|:------------|--------------:|-------------:|--------:|--------:|-----:|
+|Logit - Full |          88.49|         88.06| 779.2900| 704.0126| 0.916|
+|Logit - Both |          87.37|         85.45| 772.4223| 817.1926| 0.913|
+|Probit       |          86.83|         86.31| 786.4300| 862.6500| 0.925|
 
 \newpage
 
