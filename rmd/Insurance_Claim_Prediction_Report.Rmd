@@ -12,7 +12,9 @@ output:
 
 ## Abstract
 
-In the realm of insurance, the anticipation of claims plays a pivotal role in risk management and financial planning. This project delves into the challenge of predicting insurance claims, a task made intricate by a dataset characterized by its modest sample size and a slight imbalance between claimed and unclaimed instances. The objective is to surmount these obstacles and construct a robust predictive model capable of accurately classifying insurance claims. The project will navigate through methodologies to address imbalances, optimize feature extraction, and employ advanced predictive modeling techniques such as classification and regression trees, random forest, xgboost algorithms, and statistical models such as logit and probit. By tackling these complexities head-on, the study aims to contribute valuable insights to the field of insurance analytics, enabling more informed decision-making and risk assessment.
+In the realm of insurance, the anticipation of claims plays a pivotal role in risk management and financial planning. This project delves into the challenge of predicting insurance claims, a task made intricate by a dataset characterized by its modest sample size and a slight imbalance between claimed and unclaimed instances. The objective is to surmount these obstacles and construct a robust predictive model capable of accurately classifying insurance claims. The project will navigate through methodologies to address imbalances, optimize feature extraction, and employ advanced predictive modeling techniques such as classification and regression trees, random forest, xgboost algorithms, statistical models such as logit and probit, and Support Vector Machines (SVM).
+
+The SVM model, known for its effectiveness in both classification and regression tasks, will be explored to enhance the predictive capabilities of the model. By leveraging SVM's ability to find optimal decision boundaries, we aim to further refine our predictive model. This comprehensive approach, encompassing a variety of advanced modeling techniques, seeks to contribute valuable insights to the field of insurance analytics, enabling more informed decision-making and risk assessment.
 
 \newpage
 
@@ -326,18 +328,32 @@ From the above plot we can interpret that the a condition was applied on the cha
 
 By increasing the rounds from 2 to 15 there is an increase in the accuracy on both the train and test dataset.
 
+6. **Support Vector Machines**
+
+**Hyperplane**: The decision boundary that separates the data into classes. For a two-dimensional space, the hyperplane is a line; for three dimensions, it's a plane, and so on.
+
+**Margin**: The margin is the distance between the hyperplane and the nearest data point from either class. SVM seeks to maximize this margin, as a larger margin often leads to better generalization to unseen data.
+
+**Support Vectors**: Support vectors are the data points that are closest to the hyperplane and have a significant influence on its position. These points play a crucial role in determining the optimal hyperplane.
+
+**Kernel Trick**: SVM can handle non-linear relationships in the data by transforming the features into a higher-dimensional space. This is achieved using a kernel function, which computes the dot product in this higher-dimensional space without explicitly calculating the transformed features.
+
+**Regularization Parameter (C)**: It controls the trade-off between having a smooth decision boundary and correctly classifying the training data. A smaller C value allows for a larger margin but may misclassify some training points, while a larger C value aims to classify all training points correctly but may result in a smaller margin.
+
+The Support Vector Machine (SVM) model is configured as an epsilon-regression with a linear kernel for predicting insurance claims. With 981 identified support vectors, the model demonstrates a nuanced understanding of critical data points. Evaluation on the test set yields an accuracy of approximately 86.64%, with a sensitivity of 83.33% and specificity of 88.98%. These metrics showcase the model's effectiveness in correctly predicting both positive (claims) and negative instances. The SVM decision boundary, visualized through a plot, illustrates the model's ability to discriminate between insurance claim categories in the training set. Overall, the SVM model exhibits robust performance in predicting insurance claims, crucial for risk assessment in the realm of insurance analytics.
+
 ## Results from the Analyses
 
 ```{r model-results, echo=FALSE, message=FALSE, warning=FALSE}
 # Assuming df_model_results is your data frame containing the model results
 df_model_results <- data.frame(
-  Model = c("CART", "Random Forest", "Random Forest Reduced Predictors", "XGBoost - 2 Rounds", "XGBoost - 10 Rounds", "XGBoost - 15 Rounds"),
-  Test_Acc    = c(0.82, 0.98, 0.98, 0.92, 0.88, 0.89),
-  Test_sens = c(0.97, 0.98, 0.98, 0.90, 0.84, 0.90),
-  Test_spec = c(0.97, 0.98, 0.92, 0.93, 0.90, 0.89),
-  Train_Acc    = c(1,1 ,1 , 0.92, 0.92, 0.94),
-  Train_sens = c(1, 1, 1, 0.90, 0.90, 0.93),
-  Train_spec = c(1, 1, 1, 0.93, 0.93, 0.94)
+  Model = c("CART", "Random Forest", "Random Forest Reduced Predictors", "XGBoost - 2 Rounds", "XGBoost - 10 Rounds", "XGBoost - 15 Rounds", "SVM"),
+  Test_Acc    = c(0.82, 0.98, 0.98, 0.92, 0.88, 0.89, 0.86),
+  Test_sens = c(0.97, 0.98, 0.98, 0.90, 0.84, 0.90, 0.88),
+  Test_spec = c(0.97, 0.98, 0.92, 0.93, 0.90, 0.89, 0.83),
+  Train_Acc    = c(1,1 ,1 , 0.92, 0.92, 0.94, 0.86 ),
+  Train_sens = c(1, 1, 1, 0.90, 0.90, 0.93, 0.88),
+  Train_spec = c(1, 1, 1, 0.93, 0.93, 0.94, 0.85)
 )
 
 # Print the table using kable

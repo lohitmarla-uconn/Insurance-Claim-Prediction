@@ -21,6 +21,7 @@ library(pROC)
 library(xgboost)
 library(Matrix)
 library(DiagrammeR)
+library(e1071)
 
 options(warn = -1) 
 ```
@@ -1521,4 +1522,91 @@ sum(diag(tab1))/sum(tab1)
 ```
 Accuracy of the train data set is 94% where as the test data is 89% with the 15 number of rounds which is an improvement in the values with 2 number of rounds.
 
+#Support Vector Machines
+
+```{r}
+# Classification and Regression Trees
+library(e1071)
+
+insurance.data.dup <- read.csv("~/Documents/GitHub/GitHub/Insurance-Claim-Prediction/data/insurance.csv")
+insurance.data <- insurance.data.dup
+
+set.seed(12345)
+train.prop <- 0.80
+strats <- insurance.data$insuranceclaim
+rr <- split(1:length(strats), strats)
+idx <- sort(as.numeric(unlist(sapply(rr, 
+        function(x) sample(x, length(x)*train.prop)))))
+insurance.data.train <- insurance.data[idx, ]
+insurance.data.test <- insurance.data[-idx, ]
+table(insurance.data.train$insuranceclaim)/nrow(insurance.data.train)
+
+
+# Train an SVM classifier
+svm_model <- svm(insuranceclaim ~ ., data = insurance.data.train, kernel = "linear", cost = 1)
+
+svm_model
+
+
+# Make predictions on the test set
+predictions <- predict(svm_model, newdata = insurance.data.test, type= "response")
+prediction <- as.numeric(predictions > 0.5)
+
+conf_matrix_svm <- table(prediction, insurance.data.test$insuranceclaim)
+# Display the confusion matrix
+print(conf_matrix_svm)
+
+sum(diag(conf_matrix_svm))/sum(conf_matrix_svm)
+sensitivity(conf_matrix_svm)
+specificity(conf_matrix_svm)
+
+# Make predictions on the train set
+predictions <- predict(svm_model, newdata = insurance.data.train, type= "response")
+prediction <- as.numeric(predictions > 0.5)
+
+conf_matrix_svm <- table(prediction, insurance.data.train$insuranceclaim)
+# Display the confusion matrix
+print(conf_matrix_svm)
+
+sum(diag(conf_matrix_svm))/sum(conf_matrix_svm)
+sensitivity(conf_matrix_svm)
+specificity(conf_matrix_svm)
+
+plot(svm_model, insurance.data.train)
+
+```
+
+## SVM Model Information
+| Parameter     | Value        |
+|---------------|--------------|
+| SVM-Type      | eps-regression|
+| SVM-Kernel    | linear       |
+| Cost          | 1            |
+| Gamma         | 0.1428571    |
+| Epsilon       | 0.1          |
+
+## Number of Support Vectors
+| Support Vectors |
+|------------------|
+| 981              |
+
+## Confusion Matrix and Performance Metrics for Train Set
+| Actual / Predicted | 0   | 1   |
+|--------------------|-----|-----|
+| 0                  | 370 | 69  |
+| 1                  | 74  | 557 |
+
+- **Accuracy:** 86.64%
+- **Sensitivity (True Positive Rate):** 88.33%
+- **Specificity (True Negative Rate):** 83.33%
+
+## Confusion Matrix and Performance Metrics for Test Set
+| Actual / Predicted | 0   | 1   |
+|--------------------|-----|-----|
+| 0                  | 98  | 22  |
+| 1                  | 13  | 135 |
+
+- **Accuracy:** 86.94%
+- **Sensitivity (True Positive Rate):** 88.29%
+- **Specificity (True Negative Rate):** 85.98%
 
